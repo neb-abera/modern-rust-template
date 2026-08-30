@@ -96,8 +96,11 @@ jobs:
         tool: cargo-audit
 
     # The crate (and so binary and asset) name is read from Cargo.toml, so a
-    # rename via scripts/setup.sh needs no edits here. A repository with no
-    # release yet has nothing shipped to audit, and passes.
+    # rename via scripts/setup.sh needs no edits here. Two cases pass with a
+    # note instead of failing: no release yet (a fresh repository has
+    # shipped nothing to audit), and a release built before release.yml
+    # adopted cargo-auditable (no embedded dependency list to scan — the
+    # next release embeds it).
     - name: audit the latest release binary
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -113,7 +116,15 @@ jobs:
           --pattern "$bin-Linux-$tag.tar.gz" --output release.tar.gz
         mkdir release
         tar -xzf release.tar.gz -C release
-        cargo audit bin "release/$bin"
+        if out=$(cargo audit bin "release/$bin" 2>&1); then
+          printf '%s\n' "$out"
+        elif printf '%s\n' "$out" | grep -q 'No dependency information found'; then
+          printf '%s\n' "$out"
+          echo "release $tag predates cargo-auditable builds; the next release embeds the data"
+        else
+          printf '%s\n' "$out"
+          exit 1
+        fi
 
   # The nightly pin (Miri, fuzzing) is an ENV string in the Dockerfile that
   # Dependabot cannot see; this fails the run once the pin is stale so it
