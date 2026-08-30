@@ -83,6 +83,11 @@ jobs:
       with:
         egress-policy: block
         allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
           static.crates.io:443
           index.crates.io:443
           crates.io:443
@@ -136,6 +141,11 @@ jobs:
       with:
         egress-policy: block
         allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
           static.crates.io:443
           index.crates.io:443
           crates.io:443
