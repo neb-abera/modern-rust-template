@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help me improve
+about: Create a report to help us improve
 title: "[BUG]"
 labels: bug
 assignees: ''
@@ -21,13 +21,10 @@ Steps to reproduce the behavior:
 **Expected behavior**
 A clear and concise description of what you expected to happen.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Environment**
 
-**Desktop (please complete the following information):**
-
-* OS: [e.g. Windows]
-* Version [e.g. 10]
+* OS: [e.g. Ubuntu 24.04, macOS 15, Windows 11]
+* Project version or commit: [e.g. v1.2.0]
 
 **Additional context**
 Add any other context about the problem here.

@@ -1,171 +1,69 @@
-# Contributing to [INSERT PROJECT NAME]
+# Contributing
 
-The [INSERT PROJECT NAME] team encourages community feedback and contributions.
-Thank you for your interest in making [INSERT PROJECT NAME] better! There are several
-ways you can get involved.
+Thank you for contributing to this project. This document covers how
+development works here; the [README](README.md) covers what the project is.
 
-If you are looking for a good way to contribute to the project, please:
+## Development environment
 
-* have a look at the [available issue templates](../../issues/new/choose)
-and checkout the [examples of good first issues](../../contribute)
-(or [click here](../../labels/good%20first%20issue)).
-
-* look through the [issues that need help](../../labels/help%20wanted).
-
-* take a look at a [Pull Request template](.github/PULL_REQUEST_TEMPLATE.md) to get yourself
-started.
-
-## Reporting issues and suggesting new features
-
-If you find that the project is not working properly, please file a report using
-the [Bug Report template](../../issues/new?assignees=&labels=bug&template=bug_report.md&title=[BUG]).
-Should the template provided not suit your needs, feel free to make a
-[custom Bug Report](../../issues/new/choose),
-but please label it accordingly.
-
-We are happy to hear your ideas for how to further improve [INSERT PROJECT NAME],
-ensuring it suits your needs. Check the [Issues](../../issues)
-and see if others have submitted similar feedback. You can upvote existing feedback
-(using the thumbs up reaction/by commenting) or [submit a new suggestion](../../labels/feature).
-
-We always look at upvoted items in [Issues](../../issues)
-when we decide what to work on next. We read the comments and we look forward to
-hearing your input.
-
-## Finding issues you can help with
-
-Looking for something to work on?
-Issues marked [`good first issue`](../../labels/good%20first%20issue)
-are a good place to start.
-
-You can also check the [`help wanted`](../../labels/help%20wanted)
-tag to find other issues to help with. If you're interested in working on a fix,
-leave a comment to let everyone know and to help avoid duplicated effort from others.
-
-## Contributions we accept
-
-We highly appreciate any contributions that help us improve the end product, with
-a high emphasis being put on any bug fixes you can manage to create and direct
-improvements which address the top issues reported by users. Some general
-guidelines:
-
-### DOs
-
-* **DO** create one pull request per Issue, and ensure that the Issue is linked
-in the pull request. You can follow the [Pull Request Template](.github/PULL_REQUEST_TEMPLATE.md)
-for this.
-
-* **DO** follow our [Coding and Style](#style-guidelines) guidelines, and keep code
-changes as small as possible.
-
-* **DO** include corresponding tests whenever possible.
-
-* **DO** check for additional occurrences of the same problem in other parts of the
-codebase before submitting your PR.
-
-* **DO** link the issue you are addressing in the pull request.
-
-* **DO** write a good description for your pull request. More detail is better.
-Describe *why* the change is being made and *why* you have chosen a particular solution.
-Describe any manual testing you performed to validate your change.
-
-### DO NOTs
-
-* **DO NOT** merge multiple changes into one PR unless they have the same root cause.
-* **DO NOT** merge directly into the master branch.
-
-> Submitting a pull request for an approved Issue is not a guarantee it will be approved.
-> The change must meet our high bar for code quality, architecture and performance.
-
-## Making changes to the code
-
-### Preparing your development environment
-
-To learn how to build the code and run tests, follow the instructions in the [README](README.md).
-
-### Style guidelines
-
-Please attempt to match the style of surrounding code as much as possible.
-In new components, prefer the patterns described in the
-[Rust API Guidelines](https://rust-lang.github.io/api-guidelines/) — the
-configured clippy lint set (see `[lints]` in `Cargo.toml`) enforces much of
-this automatically.
-
-### Code formatting
-
-Format the tree with rustfmt before submitting; CI rejects unformatted code:
+Development is Docker-first: the pinned Rust toolchain, the pinned nightly
+(Miri, fuzzing) and every verification tool live in the project's toolchain
+container, so your host needs only Docker and git.
 
 ```bash
-cargo fmt
+make verify-docker
 ```
 
-### Testing
+builds the toolchain image and runs the full verification suite inside it —
+the same environment CI uses. `make help` lists the other targets (tests,
+Miri, fuzzing, coverage) individually.
 
-Your change should include tests to verify new functionality wherever possible.
-Code should be structured so that it can be unit tested independently of the UI.
-Manual test cases should be used where automated testing is not feasible.
+You can also work on the host with rustup: `rust-toolchain.toml` pins the
+toolchain, and `./scripts/verify.sh` runs the same suite (checks that need
+tools you don't have installed are skipped and say so).
 
-### Git workflow
+## Tests come first
 
-The core principle of the project, when it comes to Git workflows is that the
-`master` branch should always be in a healthy state which is ready for release.
-Every commit on master should be deployable on push. To ensure this, pull request
-**must not** be made directly on master. **Each change** should either be made in
-the **development branch** (named a variation of development, i.e. `dev`) or in a
-separate branch, named as a short summary of the change.
+Write the test before or alongside the change, and make sure it fails
+without the change. The verify suite plants a bug on purpose (the mutation
+canary) and CI mutates every line your PR touches (cargo-mutants); code
+whose tests notice nothing does not merge. Structure code so it can be unit
+tested without scaffolding.
 
-If your change is complex, please clean up the branch history before submitting a
-pull request. You can use [git rebase](https://git-scm.com/book/en/v2/Git-Branching-Rebasing)
-to group your changes into a small number of commits which we can review one at a
-time.
+## The verify suite and required checks
 
-When completing a pull request, we will generally squash your changes into a single
-commit. After confirming that the change works as intended, the branch *might* be
-deleted, in order to prevent branch polluting. Please let us know if your pull request
-needs to be merged as separate commits.
+`./scripts/verify.sh` is the local mirror of CI: build and tests with
+warnings as errors, clippy, rustdoc, Miri, cargo-deny, a fuzz smoke run,
+package purity, the mutation canary, rustfmt, and consistency checks on the
+toolchain pins and the required-contexts list.
 
-### Continuous Integration
+Every pull request must pass the required CI checks before it can merge —
+they are enforced by branch protection, for admins too. There is no way to
+skip them: `[skip ci]` in a commit message only strands the PR with its
+required checks missing forever. If a check seems wrong rather than your
+change, open an issue.
 
-For this project, CI is provided by [GitHub Actions](https://github.com/features/actions),
-with workflows found in the [`.github/workflows` folder](.github/workflows). Workflows
-are run automatically on every commit made on the master branch, unless told to skip
-for that particular commit.
+Two of those checks guard the gates themselves: actionlint and shellcheck
+lint the workflows and scripts, and `scripts/check-required-contexts.sh`
+fails if a PR-gating job is added or renamed without updating the
+branch-protection list in `scripts/setup.sh` — so if you add a CI job,
+update that list in the same PR.
 
-To skip CI runs on a particular commit, include either `[skip ci]` or `[ci skip]`
-in the commit message.
+## Pull requests
 
-```bash
-# an example of a commit message that would not trigger CI workflows
-git commit -m "my normal commit message [skip ci]"
-# or
-git commit -m "my normal commit message [ci skip]"
-```
+* One PR per change; keep the diff as small as the change allows.
+* Fill in `.github/PULL_REQUEST_TEMPLATE.md` — in particular how the change
+  was tested, with the commands you ran.
+* `cargo fmt` before pushing; CI rejects unformatted code.
+* Link the issue the PR addresses, if there is one.
 
-## Review process
+## Licensing
 
-After submitting a pull request, members of the team will review your code. We will
-assign the request to an appropriate reviewer (if applicable). Any member of the
-community may participate in the review, but at least one member of the project team
-will ultimately approve the request.
+This project is licensed under [Apache-2.0](LICENSE) (see also
+[NOTICE](NOTICE)). There is no CLA: by submitting a contribution you agree
+it is licensed under the same terms as the project (inbound = outbound), as
+described in section 5 of the Apache License 2.0.
 
-Often, multiple iterations or discussions will be needed to responding to feedback
-from reviewers. Try looking at [past pull requests](../../pulls?q=is%3Apr+is%3Aclosed)
-to see what the experience might be like.
+## Security issues
 
-## Contributor License Agreement
-
-Before we can review and accept a pull request from you, you'll need to sign a
-Contributor License Agreement (CLA). The CLA ensures that the community is free
-to use your contributions. Signing the CLA is a manual process, and you need to
-do it for each pull request made. This is done by checking the boxes in the
-[Pull Request Readiness Checklist of a Pull Request](PULL_REQUEST_TEMPLATE.md#Pull-Request-Readiness-Checklist).
-
-### IMPORTANT
-
-***Checking the aforementioned boxes means that you agree to provide your change
-and/or code FREE TO USE and SUBJECT TO CHANGES for the entire community!***
-
-You don't need to sign a CLA until you're ready to create a pull request. When your
-pull request is created, it is reviewed by a team member which, if the change is
-trivial (i.e. you just fixed a typo) will be labelled as `cla-not-required`.
-Otherwise, it's classified as `cla-required`, if not already signed.
+Do not open a public issue for a vulnerability. Use the private reporting
+flow described in [SECURITY.md](SECURITY.md).
