@@ -250,6 +250,14 @@ What a linter cannot check — naming things well, small functions, honest
 tests (*Code Complete*, *Clean Code*, *Refactoring*) — is what the mutation
 canary, the test-first workflow and code review are for.
 
+## API compatibility, mutation testing, auditable builds
+
+Three more gates round out the suite: releases run **cargo-semver-checks**
+against the previous tag (undeclared breaking API changes fail the release),
+pull requests run **cargo-mutants** over the diff (changed code nothing tests
+fails the PR), and release binaries are built with **cargo-auditable** so
+`cargo audit bin` can scan shipped artifacts for CVEs without their source.
+
 ## Contributing
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on how you can
