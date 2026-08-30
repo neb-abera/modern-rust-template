@@ -1,0 +1,38 @@
+name: Dependabot auto-merge
+# Arms GitHub's auto-merge on every Dependabot PR — majors included — so
+# updates merge themselves once every required check is green. The verify
+# suite and CI gates are the reviewer: an update that genuinely conflicts
+# (a peer-dependency wall, an API break the tests catch) fails those checks
+# and simply stays open. An open red Dependabot PR is the signal that a
+# human decision is needed, and the only kind of update that should consume
+# human attention.
+#
+# Needs two things an adopting repository must set up once:
+#  - the "Allow auto-merge" setting enabled on the repository, and
+#  - a DEPENDABOT_AUTOMERGE_TOKEN secret: a fine-grained PAT with
+#    contents:write and pull-requests:write on the repository.
+# Until both exist, the workflow warns and does nothing.
+#
+# A PAT rather than GITHUB_TOKEN, on purpose: a merge performed via
+# GITHUB_TOKEN does not trigger workflows, so pushes to the default branch
+# would run no CI, release or deploy workflow — the repository would ship a
+# dependency it never rebuilt.
+on: pull_request
+
+permissions: {}
+
+jobs:
+  automerge:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    steps:
+      - name: Arm auto-merge
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT_AUTOMERGE_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::DEPENDABOT_AUTOMERGE_TOKEN not set; not arming auto-merge. Merge this PR by hand, or add the secret (fine-grained PAT, contents:write + pull-requests:write on this repo) and enable the repository's Allow auto-merge setting."
+            exit 0
+          fi
+          gh pr merge --auto --merge "$PR_URL"

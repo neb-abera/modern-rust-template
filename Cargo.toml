@@ -1,0 +1,64 @@
+# The package is named "project" as a placeholder; scripts/setup.sh renames
+# it (and every `use project::` path) after your repository in one command.
+[package]
+name = "project"
+version = "0.1.0"
+edition = "2024"
+# Minimum supported Rust version. Kept in lockstep with rust-toolchain.toml
+# and the Dockerfile base image by scripts/check-toolchain.sh (a verify.sh
+# and CI gate), so the three can never drift apart silently.
+rust-version = "1.98"
+description = "A template for modern Rust projects"
+license = "Unlicense"
+repository = "https://github.com/neb-abera/modern-rust-template"
+readme = "README.md"
+categories = ["development-tools"]
+# What `cargo package`/`cargo publish` ships. An allowlist rather than an
+# exclude list, so new repository files (CI, Docker, fuzz corpora) can never
+# leak into the published crate; verify.sh checks this stays true.
+include = [
+  "src/**",
+  "tests/**",
+  "benches/**",
+  "Cargo.toml",
+  "README.md",
+  "LICENSE",
+]
+
+[dependencies]
+
+[dev-dependencies]
+criterion = "0.8"
+
+[[bench]]
+name = "add"
+harness = false
+
+# Lints are configured here (not in source attributes or CI flags) so the
+# same set applies to `cargo clippy`, editors and CI alike. Everything is
+# `warn` locally; CI and scripts/verify.sh promote warnings to errors with
+# RUSTFLAGS="-D warnings", so development stays fluid while merges are gated.
+[lints.rust]
+# Secure by default: this crate contains no unsafe code and the compiler
+# enforces it. If your project genuinely needs unsafe, downgrade to "deny"
+# with per-site `#[allow]` and let Miri (a verify.sh and CI gate) check it.
+unsafe_code = "forbid"
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+
+[lints.clippy]
+# The Rust API Guidelines and Effective Rust material, as a gate.
+pedantic = { level = "warn", priority = -1 }
+# Panicking on `Option`/`Result` in library code hides error paths; return
+# them to the caller instead. Tests and examples may `#[allow]` locally.
+unwrap_used = "warn"
+
+[profile.release]
+# Performance defaults: whole-program LTO and a single codegen unit trade
+# compile time for the fastest binary rustc can produce.
+lto = true
+codegen-units = 1
+# Hardening: keep integer-overflow checks in release builds. The cost is
+# small and an overflow becomes a clean panic instead of a silent wrap —
+# the Rust analog of the C++ template's FORTIFY/assertions hardening.
+overflow-checks = true
