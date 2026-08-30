@@ -2,13 +2,17 @@
 # Docker base image current. Dependabot PRs update the pinned SHA/digest and
 # the version comment together, so supply-chain pinning and staying on the
 # latest versions are compatible. Patch and minor updates are grouped per
-# ecosystem into one PR; majors arrive alone and wait for a human.
+# ecosystem into one PR; majors arrive alone and wait for a human. The
+# five-day cooldown holds brand-new releases back long enough for a
+# compromised or broken one to be yanked before it is ever proposed here.
 version: 2
 updates:
   - package-ecosystem: cargo
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 5
     groups:
       cargo-non-major:
         applies-to: version-updates
@@ -18,6 +22,8 @@ updates:
     directory: /fuzz
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 5
     groups:
       fuzz-non-major:
         applies-to: version-updates
@@ -27,6 +33,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 5
     groups:
       actions-non-major:
         applies-to: version-updates
@@ -36,3 +44,5 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 5
