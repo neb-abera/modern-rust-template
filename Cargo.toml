@@ -9,7 +9,7 @@ edition = "2024"
 # and CI gate), so the three can never drift apart silently.
 rust-version = "1.98"
 description = "A template for modern Rust projects"
-license = "Unlicense"
+license = "Apache-2.0"
 repository = "https://github.com/neb-abera/modern-rust-template"
 readme = "README.md"
 categories = ["development-tools"]
@@ -23,6 +23,7 @@ include = [
   "Cargo.toml",
   "README.md",
   "LICENSE",
+  "NOTICE",
 ]
 
 [dependencies]
