@@ -1,4 +1,5 @@
 [![Actions Status](https://github.com/neb-abera/modern-rust-template/workflows/CI/badge.svg)](https://github.com/neb-abera/modern-rust-template/actions)
+[![Coverage](https://codecov.io/gh/neb-abera/modern-rust-template/graph/badge.svg)](https://codecov.io/gh/neb-abera/modern-rust-template)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/neb-abera/modern-rust-template/badge)](https://scorecard.dev/viewer/?uri=github.com/neb-abera/modern-rust-template)
 
 # Modern Rust Template
@@ -267,7 +268,7 @@ admin, and it is safe to re-run.
 Optionally, add a `CODECOV_TOKEN` repository secret to feed the Codecov
 dashboard. The token is not required: the coverage gate itself is enforced
 inside the CI job, and the upload step simply skips when the secret is
-absent.
+absent — the coverage badge just reads "unknown" until the token is added.
 
 ## License
 

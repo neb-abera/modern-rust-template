@@ -243,6 +243,30 @@ printf 'Checks : %s%d passed%s, %s%d failed%s, %d skipped (of %d)\n' \
   "$GREEN" "$CHECKS_PASSED" "$RESET" "$RED" "$CHECKS_FAILED" "$RESET" "$CHECKS_SKIPPED" "$CHECKS_TOTAL"
 printf 'Tests  : %s%d passed%s, %s%d failed%s\n' \
   "$GREEN" "$TESTS_PASSED" "$RESET" "$RED" "$TESTS_FAILED" "$RESET"
+
+# CI parity: when running as a GitHub Actions step (GITHUB_STEP_SUMMARY is
+# set), append the same tallies as a markdown job summary — plus the line
+# coverage when an lcov report from a prior step is present. Local runs
+# (env var unset) are unchanged.
+if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+  {
+    printf '### Verification suite\n\n'
+    printf '| Checks passed | Checks failed | Checks skipped | Tests passed | Tests failed |\n'
+    printf '| ---: | ---: | ---: | ---: | ---: |\n'
+    printf '| %d of %d | %d | %d | %d | %d |\n' \
+      "$CHECKS_PASSED" "$CHECKS_TOTAL" "$CHECKS_FAILED" "$CHECKS_SKIPPED" \
+      "$TESTS_PASSED" "$TESTS_FAILED"
+    if [ -f lcov.info ]; then
+      cov=$(awk -F: '/^LF:/ {lf+=$2} /^LH:/ {lh+=$2} END {if (lf > 0) printf "%.2f%%", 100*lh/lf}' lcov.info)
+      [ -n "$cov" ] && printf '\nLine coverage: %s\n' "$cov"
+    fi
+    if [ "$CHECKS_FAILED" -gt 0 ]; then
+      printf '\nFailed checks:\n\n'
+      printf '%b' "$FAILED_NAMES" | sed 's/^  - /- /'
+    fi
+  } >> "$GITHUB_STEP_SUMMARY"
+fi
+
 if [ "$CHECKS_FAILED" -eq 0 ]; then
   printf '%s%sALL CHECKS PASSED — this build behaves as intended.%s\n' "$BOLD" "$GREEN" "$RESET"
   exit 0
