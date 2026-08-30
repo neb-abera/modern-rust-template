@@ -294,6 +294,12 @@ jobs:
   coverage:
     name: coverage
     runs-on: ubuntu-latest
+    # The Codecov upload below is optional (dashboard only) and must not
+    # fail the gate when the token is absent — a fresh repository generated
+    # from this template has no CODECOV_TOKEN secret. A secret cannot be
+    # used in `if:` directly, so it is routed through job-level env.
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -332,10 +338,16 @@ jobs:
 
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
-    - name: measure coverage
-      run: cargo llvm-cov --locked --lcov --output-path lcov.info
+    # The threshold is enforced here, in-job, so the coverage gate is real
+    # with no external service. The template's placeholder code measures
+    # 76% of lines (src/main.rs is exercised by the verify suite's
+    # executable smoke test, not by unit tests); 70 leaves a little headroom
+    # out of the box. Raise it as your project's tests grow.
+    - name: measure coverage (fail under 70% of lines)
+      run: cargo llvm-cov --locked --fail-under-lines 70 --lcov --output-path lcov.info
 
-    - name: upload coverage to Codecov
+    - name: upload coverage to Codecov (dashboard only, needs CODECOV_TOKEN)
+      if: env.CODECOV_TOKEN != ''
       uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
       with:
         files: lcov.info

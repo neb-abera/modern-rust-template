@@ -13,7 +13,7 @@
 #      secret scanning, push protection, private vulnerability reporting,
 #      Dependabot alerts and security updates
 #   3. enables branch protection on the default branch requiring the
-#      eleven CI checks
+#      fifteen CI checks
 #
 # Requirements: git, and the GitHub CLI (`gh`, https://cli.github.com)
 # authenticated as an admin of the repository. Safe to re-run: every step is
@@ -110,8 +110,10 @@ gh api -X PUT "repos/$owner_repo/vulnerability-alerts" > /dev/null
 done_ "Dependabot alerts"
 
 #
-# 3. Branch protection requiring the eleven CI checks
+# 3. Branch protection requiring the fifteen CI checks
 #
+# The list must match the PR-triggered job names in ci.yml and codeql.yml;
+# scripts/check-required-contexts.sh (a verify.sh gate) enforces the pairing.
 
 step "Enabling branch protection on $default_branch"
 gh api -X PUT "repos/$owner_repo/branches/$default_branch/protection" --input - > /dev/null <<'JSON'
@@ -121,7 +123,10 @@ gh api -X PUT "repos/$owner_repo/branches/$default_branch/protection" --input - 
     "contexts": [
       "ubuntu-latest", "macos-latest", "windows-latest",
       "clippy", "rustfmt", "docs", "miri", "cargo-deny",
-      "fuzz smoke", "coverage", "toolchain pins"
+      "fuzz smoke", "coverage", "toolchain pins",
+      "dependency review",
+      "mutation testing (cargo-mutants, diff only)",
+      "analyze (rust)", "analyze (actions)"
     ]
   },
   "enforce_admins": true,
@@ -131,7 +136,10 @@ gh api -X PUT "repos/$owner_repo/branches/$default_branch/protection" --input - 
   "allow_deletions": false
 }
 JSON
-done_ "eleven CI checks required, strict, enforced for admins"
+done_ "fifteen CI checks required, strict, enforced for admins"
 
 printf '\n%sSetup complete.%s Every future change now goes through a PR gated on the
-eleven CI checks. Verify the renamed project with: make verify-docker\n' "$BOLD" "$RESET"
+fifteen CI checks. Verify the renamed project with: make verify-docker
+
+Optional: add a CODECOV_TOKEN repository secret to feed the Codecov
+dashboard. The coverage gate itself runs in CI and needs no token.\n' "$BOLD" "$RESET"
