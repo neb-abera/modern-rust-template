@@ -1,0 +1,13 @@
+/target
+/fuzz/target
+/fuzz/corpus
+/fuzz/artifacts
+/fuzz/coverage
+*.profraw
+lcov.info
+
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store

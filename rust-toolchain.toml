@@ -1,0 +1,11 @@
+# Pins the exact stable toolchain for every developer and CI runner alike —
+# rustup reads this file automatically, so `cargo build` on any machine uses
+# the same compiler. The Dockerfile base image and Cargo.toml's rust-version
+# must match this channel; scripts/check-toolchain.sh (run by verify.sh and
+# CI) enforces the pairing.
+#
+# The pinned nightly used for Miri and fuzzing lives in the Dockerfile
+# (NIGHTLY_TOOLCHAIN) — this file can only pin one toolchain.
+[toolchain]
+channel = "1.98.0"
+components = ["clippy", "rustfmt"]

@@ -1,0 +1,26 @@
+# cargo-fuzz harness crate. Its own workspace (the empty [workspace] table
+# below), so the fuzz-only dependencies never enter the main crate's tree,
+# lockfile or published package. Run with:  make fuzz
+[package]
+name = "project-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.project]
+path = ".."
+
+[[bin]]
+name = "add"
+path = "fuzz_targets/add.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]

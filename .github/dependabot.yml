@@ -1,0 +1,38 @@
+# Keeps the crate dependencies, the SHA-pinned GitHub Actions and the
+# Docker base image current. Dependabot PRs update the pinned SHA/digest and
+# the version comment together, so supply-chain pinning and staying on the
+# latest versions are compatible. Patch and minor updates are grouped per
+# ecosystem into one PR; majors arrive alone and wait for a human.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      cargo-non-major:
+        applies-to: version-updates
+        update-types: [minor, patch]
+
+  - package-ecosystem: cargo
+    directory: /fuzz
+    schedule:
+      interval: weekly
+    groups:
+      fuzz-non-major:
+        applies-to: version-updates
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions-non-major:
+        applies-to: version-updates
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly

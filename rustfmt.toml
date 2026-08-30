@@ -1,0 +1,5 @@
+# Formatting is the rustfmt default style — the community standard. Style
+# is subjective; add overrides here freely (stable options only, so the
+# gate behaves identically for every contributor), the format check only
+# cares that the tree matches whatever this file says.
+style_edition = "2024"

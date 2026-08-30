@@ -1,0 +1,55 @@
+name: CodeQL
+
+on:
+  # Unfiltered pull_request: filtering on the default branch leaves a PR
+  # stacked on another feature branch with no checks at all.
+  pull_request:
+  push:
+    branches: [ main, master ]
+  schedule:
+    # Weekly scan so new queries run even without commits
+    - cron: '30 6 * * 1'
+
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the running check obsolete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: rust
+            build-mode: none
+          - language: actions
+            build-mode: none
+
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: initialize CodeQL
+      uses: github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
+
+    - name: perform CodeQL analysis
+      uses: github/codeql-action/analyze@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
+      with:
+        category: "/language:${{ matrix.language }}"

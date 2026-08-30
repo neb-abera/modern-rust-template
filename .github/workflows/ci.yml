@@ -1,0 +1,260 @@
+name: CI
+
+on:
+  # Unfiltered pull_request: filtering on the default branch leaves a PR
+  # stacked on another feature branch with no checks at all.
+  pull_request:
+  push:
+    branches: [ main, master ]
+
+# Least-privilege token: read-only for all CI jobs.
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the running check obsolete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # The lint set lives in Cargo.toml [lints]; CI only promotes warnings to
+  # errors. Locally the same code merely warns, so development stays fluid.
+  RUSTFLAGS: -D warnings
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - name: harden runner (Linux)
+      if: runner.os == 'Linux'
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    # rustup reads rust-toolchain.toml, so the version is pinned in exactly
+    # one place and never hardcoded here.
+    - name: install pinned toolchain
+      run: rustup toolchain install
+
+    - uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2.9.2
+
+    - name: build
+      run: cargo build --release --locked
+
+    - name: run tests
+      run: cargo test --release --locked
+
+  clippy:
+    name: clippy
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: install pinned toolchain
+      run: rustup toolchain install
+
+    - uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2.9.2
+
+    - name: run clippy over every target
+      run: cargo clippy --all-targets --locked
+
+  rustfmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: install pinned toolchain
+      run: rustup toolchain install
+
+    - name: check formatting
+      run: cargo fmt --check
+
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: install pinned toolchain
+      run: rustup toolchain install
+
+    - uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2.9.2
+
+    - name: build documentation (warnings as errors)
+      env:
+        RUSTDOCFLAGS: -D warnings
+      run: cargo doc --no-deps --lib --locked
+
+  # Miri interprets the test suite and flags undefined behavior — the
+  # Rustonomicon material as a gate. Uses the nightly pinned in the
+  # Dockerfile, the single place it is written down.
+  miri:
+    name: miri
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: install pinned nightly with Miri
+      run: |
+        NIGHTLY=$(sed -n 's/^ENV NIGHTLY_TOOLCHAIN=\(.*\)$/\1/p' Dockerfile)
+        rustup toolchain install "$NIGHTLY" --profile minimal --component miri --component rust-src
+        echo "NIGHTLY=$NIGHTLY" >> "$GITHUB_ENV"
+
+    - uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2.9.2
+
+    # RUSTFLAGS is cleared for Miri only: it changes the sysroot
+    # fingerprint, forcing a slow rebuild; warnings-as-errors is already
+    # gated by the build and clippy jobs.
+    - name: run tests under Miri
+      env:
+        RUSTFLAGS: ""
+      run: cargo +"$NIGHTLY" miri test --locked
+
+  # cargo-deny: the supply-chain gate — RustSec advisories, license
+  # compliance, duplicate/banned crates and untrusted sources (deny.toml).
+  cargo-deny:
+    name: cargo-deny
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - uses: EmbarkStudios/cargo-deny-action@c3bbe7e4e3f7baeee1a3dd9aec0a3b2aded580fb # v2.1.1
+
+  # libFuzzer smoke: the fuzz harness builds and survives a short
+  # coverage-guided run. Real fuzzing campaigns run longer or continuously
+  # (see the fuzz directory); this gate keeps the harness from rotting.
+  fuzz:
+    name: fuzz smoke
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: install pinned nightly
+      run: |
+        NIGHTLY=$(sed -n 's/^ENV NIGHTLY_TOOLCHAIN=\(.*\)$/\1/p' Dockerfile)
+        rustup toolchain install "$NIGHTLY" --profile minimal
+        echo "NIGHTLY=$NIGHTLY" >> "$GITHUB_ENV"
+
+    - name: install cargo-fuzz
+      uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
+      with:
+        tool: cargo-fuzz
+
+    # The target triple is passed explicitly: the prebuilt cargo-fuzz
+    # binary otherwise defaults to the triple *it* was compiled for (musl),
+    # which has no std installed on the runner.
+    - name: build and smoke-run the fuzz target
+      run: |
+        cargo +"$NIGHTLY" fuzz run add \
+          --target "$(rustc +"$NIGHTLY" -vV | sed -n 's/^host: //p')" \
+          -- -max_total_time=15
+
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: install pinned toolchain
+      run: |
+        rustup toolchain install
+        rustup component add llvm-tools
+
+    - name: install cargo-llvm-cov
+      uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
+      with:
+        tool: cargo-llvm-cov
+
+    - uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2.9.2
+
+    - name: measure coverage
+      run: cargo llvm-cov --locked --lcov --output-path lcov.info
+
+    - name: upload coverage to Codecov
+      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      with:
+        files: lcov.info
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+  # The three toolchain pins (rust-toolchain.toml, Dockerfile, Cargo.toml)
+  # must agree; the check is a script so verify.sh and CI share one engine.
+  toolchain-pins:
+    name: toolchain pins
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: check the pins agree
+      run: ./scripts/check-toolchain.sh
+
+  # Flags known-vulnerable dependencies introduced by a PR, from the diff of
+  # the dependency graph (cargo, actions and docker ecosystems here).
+  dependency-review:
+    name: dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+      with:
+        fail-on-severity: high
