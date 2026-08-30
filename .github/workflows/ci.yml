@@ -258,3 +258,39 @@ jobs:
     - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
       with:
         fail-on-severity: high
+
+  # Mutation testing of the changed code: mutates every line the PR touches
+  # and fails if the test suite notices nothing. Extends the verify suite's
+  # single mutation canary to the whole diff.
+  mutants:
+    name: mutation testing (cargo-mutants, diff only)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0
+
+    - name: install pinned toolchain
+      run: rustup toolchain install
+
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+    - name: install cargo-mutants
+      uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
+      with:
+        tool: cargo-mutants
+
+    - name: mutate the diff
+      run: |
+        git diff "origin/${{ github.base_ref }}"... > pr.diff
+        cargo mutants --in-diff pr.diff --timeout-multiplier 3 -- --locked
+
+    - name: mutants report
+      if: failure()
+      run: cat mutants.out/missed.txt 2>/dev/null || true
