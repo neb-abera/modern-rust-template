@@ -49,7 +49,7 @@ jobs:
     - name: install pinned toolchain
       run: rustup toolchain install
 
-    - uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2.9.2
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
     - name: build
       run: cargo build --release --locked
@@ -71,7 +71,7 @@ jobs:
     - name: install pinned toolchain
       run: rustup toolchain install
 
-    - uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2.9.2
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
     - name: run clippy over every target
       run: cargo clippy --all-targets --locked
@@ -107,7 +107,7 @@ jobs:
     - name: install pinned toolchain
       run: rustup toolchain install
 
-    - uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2.9.2
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
     - name: build documentation (warnings as errors)
       env:
@@ -134,7 +134,7 @@ jobs:
         rustup toolchain install "$NIGHTLY" --profile minimal --component miri --component rust-src
         echo "NIGHTLY=$NIGHTLY" >> "$GITHUB_ENV"
 
-    - uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2.9.2
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
     # RUSTFLAGS is cleared for Miri only: it changes the sysroot
     # fingerprint, forcing a slow rebuild; warnings-as-errors is already
@@ -214,7 +214,7 @@ jobs:
       with:
         tool: cargo-llvm-cov
 
-    - uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2.9.2
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
     - name: measure coverage
       run: cargo llvm-cov --locked --lcov --output-path lcov.info
