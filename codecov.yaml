@@ -1,6 +1,17 @@
+# Coverage is measured by `cargo llvm-cov`, which runs the test suite
+# (unit, integration and doc tests). What it can see is therefore library
+# code; the entries below are excluded so the reported number means
+# "how well tested is the library", not "how much of the repository ran".
 ignore:
+  # Test and bench code measuring itself would only inflate the number.
   - "tests"
   - "benches"
+  # The binary's main() is never executed by the test suite — it is
+  # exercised by the verification suite's executable smoke test
+  # (scripts/verify.sh) instead, which asserts its exact output. Counting
+  # its lines here would report a permanent, misleading coverage gap that
+  # no unit test can close.
+  - "src/main.rs"
 
 comment:
   require_changes: true
