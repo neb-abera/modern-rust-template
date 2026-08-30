@@ -1,0 +1,13 @@
+# Normalize line endings to LF in the repository and on checkout, so the
+# Windows CI leg builds the same bytes as everyone else.
+* text=auto eol=lf
+
+# Binary files: never normalized, never diffed as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
