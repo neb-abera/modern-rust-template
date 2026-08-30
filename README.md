@@ -76,8 +76,9 @@ Docker) with patch/minor updates grouped and an auto-merge workflow, so
 staying current costs no attention until a major lands or a check goes red,
 
 * **.md templates** for *README*, *Contributing Guidelines*, *Issues* and
-*Pull Requests*, and a **permissive license** — the template is licensed
-under the [Unlicense](https://unlicense.org/).
+*Pull Requests*, and a **permissive license** — the template is licensed under the
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), with
+attribution traveling in the NOTICE file.
 
 ## Getting started
 
@@ -256,5 +257,7 @@ admin, and it is safe to re-run.
 
 ## License
 
-This project is licensed under the [Unlicense](https://unlicense.org/) -
-see the [LICENSE](LICENSE) file for details
+This project is licensed under the
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) — see the
+[LICENSE](LICENSE) file. Keep the [NOTICE](NOTICE) file's attribution with
+any copies.
