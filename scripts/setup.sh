@@ -13,7 +13,8 @@
 #      secret scanning, push protection, private vulnerability reporting,
 #      Dependabot alerts and security updates
 #   3. enables branch protection on the default branch requiring the
-#      sixteen CI checks
+#      sixteen CI checks — plus required commit signatures, when this
+#      machine is configured to sign
 #
 # Requirements: git, and the GitHub CLI (`gh`, https://cli.github.com)
 # authenticated as an admin of the repository. Safe to re-run: every step is
@@ -139,6 +140,21 @@ gh api -X PUT "repos/$owner_repo/branches/$default_branch/protection" --input - 
 }
 JSON
 done_ "sixteen CI checks required, strict, enforced for admins"
+
+# Required commit signatures are a separate sub-resource of branch
+# protection with their own endpoint, not a field of the PUT above, so they
+# are enabled here explicitly (idempotent: POSTing to an already-enabled
+# branch succeeds). Guarded like the webapp template: a branch that demands
+# signatures from a machine that cannot produce them would lock its own
+# adopter out on day one, so this only turns on when this clone is already
+# configured to sign its commits.
+if [ "$(git config --get commit.gpgsign || true)" = "true" ]; then
+  gh api -X POST "repos/$owner_repo/branches/$default_branch/protection/required_signatures" > /dev/null
+  done_ "$default_branch accepts only Verified (signed) commits"
+else
+  warn "commit signing is not configured (commit.gpgsign is not true); $default_branch does NOT require signatures"
+  warn "configure signing, then run: gh api -X POST repos/$owner_repo/branches/$default_branch/protection/required_signatures"
+fi
 
 printf '\n%sSetup complete.%s Every future change now goes through a PR gated on the
 sixteen CI checks. Verify the renamed project with: make verify-docker
