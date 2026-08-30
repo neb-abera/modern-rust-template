@@ -67,8 +67,10 @@ merge. **CodeQL** scans the Rust sources and the workflows themselves;
 **OpenSSF Scorecard** watches the supply-chain posture,
 
 * **An automated release workflow** — pushing a `v*` tag builds and tests
-on all three platforms and publishes packaged binaries to a GitHub Release
-with **SLSA build provenance attestations** and an **SPDX SBOM**,
+on Linux, macOS and Windows — plus a **fully static musl binary** for
+scratch/distroless containers and Alpine — and publishes packaged,
+debug-info-stripped binaries to a GitHub Release with **SLSA build
+provenance attestations** and an **SPDX SBOM**,
 
 * **Dockerized development environment** — a toolchain image pinning the
 compiler (by digest), the Miri/fuzzing nightly and every cargo tool the
