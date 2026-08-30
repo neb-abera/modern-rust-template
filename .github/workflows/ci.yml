@@ -72,7 +72,26 @@ jobs:
       run: cargo build --release --locked
 
     - name: run tests
-      run: cargo test --release --locked
+      run: cargo test --release --locked 2>&1 | tee test-output.log
+
+    # Job summary: total tests passed/failed, parsed from the cargo test
+    # output captured above — the tests are not re-run. Guarded on the env
+    # var so the step is a no-op anywhere GITHUB_STEP_SUMMARY is absent.
+    - name: append test totals to the job summary
+      if: always()
+      env:
+        MATRIX_OS: ${{ matrix.os }}
+      run: |
+        [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f test-output.log ] || exit 0
+        passed=$(grep -E '^test result:' test-output.log | grep -Eo '[0-9]+ passed' | awk '{s+=$1} END {print s+0}' || true)
+        failed=$(grep -E '^test result:' test-output.log | grep -Eo '[0-9]+ failed' | awk '{s+=$1} END {print s+0}' || true)
+        {
+          echo "### Tests ($MATRIX_OS)"
+          echo ""
+          echo "| Passed | Failed |"
+          echo "| ---: | ---: |"
+          echo "| ${passed:-0} | ${failed:-0} |"
+        } >> "$GITHUB_STEP_SUMMARY"
 
   clippy:
     name: clippy
@@ -322,6 +341,9 @@ jobs:
     # used in `if:` directly, so it is routed through job-level env.
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      # The line-coverage floor, single-sourced for the gate below and the
+      # job summary.
+      COVERAGE_FLOOR: 70
     steps:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -365,10 +387,27 @@ jobs:
     # The threshold is enforced here, in-job, so the coverage gate is real
     # with no external service. The template's placeholder code measures
     # 76% of lines (src/main.rs is exercised by the verify suite's
-    # executable smoke test, not by unit tests); 70 leaves a little headroom
-    # out of the box. Raise it as your project's tests grow.
-    - name: measure coverage (fail under 70% of lines)
-      run: cargo llvm-cov --locked --fail-under-lines 70 --lcov --output-path lcov.info
+    # executable smoke test, not by unit tests); a floor of 70 leaves a
+    # little headroom out of the box. Raise COVERAGE_FLOOR (job env above)
+    # as your project's tests grow.
+    - name: measure coverage (fail under the line floor)
+      run: cargo llvm-cov --locked --fail-under-lines "$COVERAGE_FLOOR" --lcov --output-path lcov.info
+
+    # Job summary: the measured line coverage and the enforced floor, read
+    # back from the lcov report already generated above (LH/LF sums are the
+    # lines-hit / lines-found totals) — no second instrumented run.
+    - name: append coverage to the job summary
+      if: always()
+      run: |
+        [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f lcov.info ] || exit 0
+        pct=$(awk -F: '/^LF:/ {lf+=$2} /^LH:/ {lh+=$2} END {if (lf > 0) printf "%.2f", 100*lh/lf; else printf "n/a"}' lcov.info)
+        {
+          echo "### Coverage"
+          echo ""
+          echo "| Line coverage | Enforced floor |"
+          echo "| ---: | ---: |"
+          echo "| ${pct}% | ${COVERAGE_FLOOR}% |"
+        } >> "$GITHUB_STEP_SUMMARY"
 
     - name: upload coverage to Codecov (dashboard only, needs CODECOV_TOKEN)
       if: env.CODECOV_TOKEN != ''
@@ -496,6 +535,23 @@ jobs:
     - name: mutants report
       if: failure()
       run: cat mutants.out/missed.txt 2>/dev/null || true
+
+    # Job summary: caught/missed counts from the outcome directory
+    # cargo-mutants writes (mutants.out). Skips gracefully when it is
+    # absent — e.g. a PR whose diff touches no mutable code.
+    - name: append mutation outcomes to the job summary
+      if: always()
+      run: |
+        [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -d mutants.out ] || exit 0
+        caught=$(grep -c . mutants.out/caught.txt 2>/dev/null || true)
+        missed=$(grep -c . mutants.out/missed.txt 2>/dev/null || true)
+        {
+          echo "### Mutation testing (diff only)"
+          echo ""
+          echo "| Caught | Missed |"
+          echo "| ---: | ---: |"
+          echo "| ${caught:-0} | ${missed:-0} |"
+        } >> "$GITHUB_STEP_SUMMARY"
 
   # Lint the linters: actionlint validates the workflow files themselves and
   # shellcheck validates the repository's shell scripts, so a broken CI gate
