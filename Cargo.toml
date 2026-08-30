@@ -63,3 +63,15 @@ codegen-units = 1
 # small and an overflow becomes a clean panic instead of a silent wrap —
 # the Rust analog of the C++ template's FORTIFY/assertions hardening.
 overflow-checks = true
+# Shipped binaries should not carry debug info. "debuginfo" (not "symbols")
+# is deliberate: it drops the DWARF sections — the bulk of the size and the
+# source-level detail — but keeps the symbol table, so the clean panics the
+# overflow-checks line above buys still come with function names in release
+# backtraces. cargo-auditable's dependency list lives in its own allocated
+# section (.dep-v0) and survives stripping, so `cargo audit bin` still works
+# on the shipped artifacts.
+strip = "debuginfo"
+# panic = "abort" was considered and rejected: it shrinks binaries and
+# removes landing pads, but it breaks #[should_panic] tests and takes
+# unwinding away from downstream callers of the library — the wrong trade
+# for a template whose crate is a library first.
