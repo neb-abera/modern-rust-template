@@ -76,13 +76,23 @@ Docker) with patch/minor updates grouped and an auto-merge workflow, so
 staying current costs no attention until a major lands or a check goes red,
 
 * **.md templates** for *README*, *Contributing Guidelines*, *Issues* and
-*Pull Requests*, and a **permissive license** — the template is licensed
-under the [Unlicense](https://unlicense.org/).
+*Pull Requests*, and a **permissive license** — the template is licensed under the
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), with
+attribution traveling in the NOTICE file.
 
-## Getting Started
+## Getting started
 
-These instructions will get you a copy of the project up and running on your
-local machine for development and testing purposes.
+Generate a repository from this template on GitHub, clone it, then:
+
+```bash
+make shell          # toolchain shell: edit on the host, build in the container
+```
+
+```bash
+make verify-docker  # the full verification suite (what CI runs)
+```
+
+`make help` lists everything else (`test`, `miri`, `fuzz`, `bench`, `docs`).
 
 ### Prerequisites
 
@@ -104,60 +114,32 @@ tools (`cargo-deny`, `cargo-llvm-cov`, `cargo-fuzz`) install with
 `cargo install --locked <tool>`; the verification suite skips their checks
 with a `[SKIP]` when they are missing rather than failing.
 
-### Installing
+## Project layout
 
-It is fairly easy to install the project, all you need to do is clone it
-from [GitHub](https://github.com/neb-abera/modern-rust-template) or
-[generate a new repository from it](https://github.com/neb-abera/modern-rust-template/generate)
-(also on **GitHub**).
-
-If you wish to clone the repository, rather than generate from it, you
-simply need to run:
-
-```bash
-git clone https://github.com/neb-abera/modern-rust-template/
+```
+src/              the library (unit tests inline) and optional binary entry point
+tests/            integration tests exercising the public API
+benches/          Criterion benchmark harness (`make bench`)
+fuzz/             cargo-fuzz (libFuzzer) harness, smoke-run in CI
+scripts/          verify.sh / verify-docker.sh / setup.sh / check-toolchain.sh
+Dockerfile        the pinned toolchain image CI and `make shell` share
+.github/          CI, CodeQL, Scorecard and Release workflows (SHA-pinned), Dependabot
 ```
 
-After getting your copy (either way), one command finishes the setup — it
-renames the crate after your repository (the package name, both lockfiles,
-the fuzz crate, every `use` path and the README badge/links) and enables
-the repo-level GitHub settings templates cannot carry over (secret
-scanning, push protection, private vulnerability reporting, Dependabot
-alerts + security updates, and branch protection requiring the eleven CI
-checks):
+## Development workflow
 
-```bash
-./scripts/setup.sh
-```
+1. Write a failing test — unit, integration or doc test, whichever layer
+   owns the behavior.
+2. `make shell` and implement until it passes.
+3. `make verify-docker` before pushing — CI gates on the identical suite, so
+   a local green run predicts the PR gate.
+4. When a milestone is confirmed working, tag it (`git tag v1.2.0 && git
+   push origin v1.2.0`) to publish provenance-attested binaries and an SBOM
+   to a GitHub Release ([SemVer](http://semver.org/)).
 
-It needs the [GitHub CLI](https://cli.github.com) authenticated as a repo
-admin, and it is safe to re-run.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the pull-request process.
 
-## Building the project
-
-### In Docker (recommended)
-
-Open a development shell inside the toolchain container — the image is
-built automatically the first time (cached afterwards) and your checkout is
-mounted at `/work`, so you edit files on your machine with your normal
-editor and build/test inside the container:
-
-```bash
-make shell
-```
-
-Everything below (building, tests, Miri, fuzzing, verification) works
-identically inside that shell. The container is removed when you exit; only
-the image persists.
-
-You can also run the full verification suite non-interactively in a fresh
-container (source mounted read-only, checkout never touched):
-
-```bash
-make verify-docker
-```
-
-### The build itself
+## Building and testing
 
 Cargo is the build system; the pinned toolchain comes from
 `rust-toolchain.toml` automatically:
@@ -244,35 +226,38 @@ that is not a failing check decays, so each source is wired to one:
   `unwrap_used` linted in library code, errors returned instead of
   panicking on untrusted input,
 * **fuzzing as standard practice** (cargo-fuzz/libFuzzer) — a harness CI
-  smoke-runs on every PR, ready for real parsers and input paths.
+  smoke-runs on every PR, ready for real parsers and input paths,
+* **API stability and test honesty as gates** — releases run
+  **cargo-semver-checks** against the previous tag (undeclared breaking API
+  changes fail the release), pull requests run **cargo-mutants** over the
+  diff (changed code nothing tests fails the PR), and release binaries are
+  built with **cargo-auditable** so `cargo audit bin` can scan shipped
+  artifacts for CVEs without their source.
 
 What a linter cannot check — naming things well, small functions, honest
 tests (*Code Complete*, *Clean Code*, *Refactoring*) — is what the mutation
 canary, the test-first workflow and code review are for.
 
-## API compatibility, mutation testing, auditable builds
+## After generating from this template
 
-Three more gates round out the suite: releases run **cargo-semver-checks**
-against the previous tag (undeclared breaking API changes fail the release),
-pull requests run **cargo-mutants** over the diff (changed code nothing tests
-fails the PR), and release binaries are built with **cargo-auditable** so
-`cargo audit bin` can scan shipped artifacts for CVEs without their source.
+One command finishes the setup — it
+renames the crate after your repository (the package name, both lockfiles,
+the fuzz crate, every `use` path and the README badge/links) and enables
+the repo-level GitHub settings templates cannot carry over (secret
+scanning, push protection, private vulnerability reporting, Dependabot
+alerts + security updates, and branch protection requiring the eleven CI
+checks):
 
-## Contributing
+```bash
+./scripts/setup.sh
+```
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on how you can
-become a contributor and the process for submitting pull requests to us.
-
-## Versioning
-
-This project makes use of [SemVer](http://semver.org/) for versioning. A
-list of existing versions can be found in the
-[project's releases](https://github.com/neb-abera/modern-rust-template/releases).
-Pushing a `v*` tag triggers the release workflow, which builds and tests on
-all three platforms and publishes packaged, provenance-attested binaries
-and an SBOM to a GitHub Release.
+It needs the [GitHub CLI](https://cli.github.com) authenticated as a repo
+admin, and it is safe to re-run.
 
 ## License
 
-This project is licensed under the [Unlicense](https://unlicense.org/) -
-see the [LICENSE](LICENSE) file for details
+This project is licensed under the
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) — see the
+[LICENSE](LICENSE) file. Keep the [NOTICE](NOTICE) file's attribution with
+any copies.
