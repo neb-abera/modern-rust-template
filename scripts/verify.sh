@@ -5,17 +5,18 @@
 # before a merge:
 #
 #    1. the toolchain pins (rust-toolchain.toml / Dockerfile / Cargo.toml) agree
-#    2. clean release build with warnings-as-errors + full test suite
+#    2. setup.sh's required branch-protection contexts match the CI job names
+#    3. clean release build with warnings-as-errors + full test suite
 #       (unit, integration and documentation tests)
-#    3. clippy is clean (Rust API Guidelines material, pedantic set)
-#    4. rustdoc builds with no warnings (missing docs, broken links)
-#    5. the tests pass under Miri (undefined-behavior detection)
-#    6. cargo-deny: no security advisories, license or source violations
-#    7. fuzz smoke: the libFuzzer target builds and survives a short run
-#    8. executable mode builds and runs
-#    9. the published package contains only this project's intended files
-#   10. mutation canary: plant a bug and confirm the tests catch it
-#   11. sources are rustfmt clean
+#    4. clippy is clean (Rust API Guidelines material, pedantic set)
+#    5. rustdoc builds with no warnings (missing docs, broken links)
+#    6. the tests pass under Miri (undefined-behavior detection)
+#    7. cargo-deny: no security advisories, license or source violations
+#    8. fuzz smoke: the libFuzzer target builds and survives a short run
+#    9. executable mode builds and runs
+#   10. the published package contains only this project's intended files
+#   11. mutation canary: plant a bug and confirm the tests catch it
+#   12. sources are rustfmt clean
 #
 # Exit code 0 means everything passed.
 
@@ -41,7 +42,7 @@ else
   RED=""; GREEN=""; YELLOW=""; BOLD=""; RESET=""
 fi
 
-CHECKS_TOTAL=11
+CHECKS_TOTAL=12
 CHECKS_RUN=0
 CHECKS_PASSED=0
 CHECKS_FAILED=0
@@ -94,6 +95,13 @@ if ./scripts/check-toolchain.sh; then
   pass "rust-toolchain.toml, Dockerfile and Cargo.toml pin the same toolchain"
 else
   fail "Toolchain pin consistency"
+fi
+
+banner "Required-contexts drift: setup.sh vs the CI workflows"
+if ./scripts/check-required-contexts.sh; then
+  pass "setup.sh's branch-protection contexts match the PR-triggered CI job names"
+else
+  fail "Required-contexts drift"
 fi
 
 banner "Release build + full test suite (warnings as errors)"
