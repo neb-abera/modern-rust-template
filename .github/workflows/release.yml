@@ -22,13 +22,28 @@ jobs:
   build:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
+    # Audit mode, not block: this job's egress (rustup, crates.io, the
+    # artifact upload endpoints) cannot be exercised without cutting a real
+    # release, so a wrong allowlist would fail a release mid-tag. Audit
+    # still records every endpoint for review. harden-runner is Linux-only,
+    # so the macOS and Windows legs skip it — there is nothing to install
+    # there.
+    - name: harden runner (Linux)
+      if: runner.os == 'Linux'
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: audit
+
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: install pinned toolchain
       run: rustup toolchain install
@@ -77,6 +92,7 @@ jobs:
   semver:
     name: semver checks (API compatibility)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -102,6 +118,7 @@ jobs:
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
+        persist-credentials: false
         fetch-depth: 0
 
     - name: install pinned toolchain
@@ -129,6 +146,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [build, semver]
     permissions:
       contents: write
@@ -159,6 +177,8 @@ jobs:
           tuf-repo-cdn.sigstore.dev:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: download artifacts
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -166,31 +186,46 @@ jobs:
         path: artifacts
         merge-multiple: true
 
-    # SLSA build provenance for the packaged binaries; consumers verify
-    # with 'gh attestation verify <file> --repo <owner>/<repo>'.
-    - name: attest artifact provenance
-      uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
-      with:
-        subject-path: artifacts/*
-
-    # SBOM for the release, generated from the lockfile that produced the
-    # binaries and attached to the GitHub Release so consumers can audit
-    # the dependency tree without reconstructing it.
+    # SBOM for the release, generated from the committed lockfile — the
+    # exact dependency resolution the binaries were built from (--locked) —
+    # and attached to the GitHub Release so consumers can audit the
+    # dependency tree without reconstructing it. Generated BEFORE the
+    # attestation step so the SBOM itself is covered by the provenance.
     - name: generate SBOM
       uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
       with:
-        path: .
+        file: Cargo.lock
         format: spdx-json
         output-file: sbom.spdx.json
         upload-artifact: false
         upload-release-assets: false
+
+    # SLSA build provenance for the packaged binaries and the SBOM;
+    # consumers verify with
+    # 'gh attestation verify <file> --repo <owner>/<repo>'.
+    - name: attest artifact provenance
+      id: attest
+      uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+      with:
+        subject-path: |
+          artifacts/*
+          sbom.spdx.json
+
+    # The sigstore bundle the attest step writes is also shipped as a
+    # release asset under a stable name, so offline verifiers (and the
+    # OpenSSF Scorecard Signed-Releases probe) can find the signature next
+    # to the artifacts.
+    - name: stage the provenance bundle as a release asset
+      env:
+        BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+      run: cp "$BUNDLE" provenance.intoto.jsonl
 
     - name: create release
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         TAG: ${{ github.ref_name }}
       run: |
-        gh release create "$TAG" artifacts/* sbom.spdx.json \
+        gh release create "$TAG" artifacts/* sbom.spdx.json provenance.intoto.jsonl \
           --repo "${{ github.repository }}" \
           --title "Release $TAG" \
           --generate-notes

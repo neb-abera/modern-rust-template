@@ -252,7 +252,7 @@ renames the crate after your repository (the package name, both lockfiles,
 the fuzz crate, every `use` path and the README badge/links) and enables
 the repo-level GitHub settings templates cannot carry over (secret
 scanning, push protection, private vulnerability reporting, Dependabot
-alerts + security updates, and branch protection requiring the fifteen CI
+alerts + security updates, and branch protection requiring the sixteen CI
 checks):
 
 ```bash
