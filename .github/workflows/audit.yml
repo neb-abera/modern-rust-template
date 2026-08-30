@@ -1,0 +1,141 @@
+name: Audit
+
+# Scheduled supply-chain hygiene: PR gates only run when someone pushes, so
+# an advisory published against an already-merged dependency tree, a shipped
+# release binary, or an aging nightly pin would otherwise surface only on
+# the next change. This workflow re-checks all three every week.
+
+on:
+  schedule:
+    # Weekly scan so new advisories surface even without commits
+    - cron: '30 5 * * 1'
+  workflow_dispatch:
+
+# Least-privilege token: read-only, enough to download release assets.
+permissions:
+  contents: read
+
+# A newer run makes the running one obsolete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # RustSec advisories against the committed lockfile — the advisories
+  # subset of the cargo-deny gate CI runs on every PR, re-run on a clock.
+  advisories:
+    name: advisories (cargo-deny)
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+      with:
+        command: check advisories
+
+  # `cargo audit bin` scans the latest shipped release binary for CVEs via
+  # the dependency list cargo-auditable embedded at build time (release.yml)
+  # — so an advisory against something already released is caught even if
+  # the lockfile has since moved on.
+  audit-release-binary:
+    name: audit release binary
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    # rustup reads rust-toolchain.toml, so the version is pinned in exactly
+    # one place and never hardcoded here.
+    - name: install pinned toolchain
+      run: rustup toolchain install
+
+    - name: install cargo-audit
+      uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
+      with:
+        tool: cargo-audit
+
+    # The crate (and so binary and asset) name is read from Cargo.toml, so a
+    # rename via scripts/setup.sh needs no edits here. A repository with no
+    # release yet has nothing shipped to audit, and passes.
+    - name: audit the latest release binary
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        set -euo pipefail
+        tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)
+        if [ -z "$tag" ]; then
+          echo "no release yet; nothing shipped to audit"
+          exit 0
+        fi
+        bin=$(sed -n 's/^name = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+        gh release download "$tag" --repo "$GITHUB_REPOSITORY" \
+          --pattern "$bin-Linux-$tag.tar.gz" --output release.tar.gz
+        mkdir release
+        tar -xzf release.tar.gz -C release
+        cargo audit bin "release/$bin"
+
+  # The nightly pin (Miri, fuzzing) is an ENV string in the Dockerfile that
+  # Dependabot cannot see; this fails the run once the pin is stale so it
+  # gets bumped by hand instead of rotting.
+  nightly-pin-age:
+    name: nightly pin age
+    runs-on: ubuntu-latest
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      with:
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: check the nightly pin is fresh
+      run: ./scripts/check-nightly-age.sh

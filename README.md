@@ -40,7 +40,10 @@ project,
 checks every pull request for RustSec advisories, license-allowlist
 violations, duplicate crates and non-crates.io sources (`deny.toml`), with
 `--locked` builds everywhere so the committed `Cargo.lock` is the only
-resolution CI accepts,
+resolution CI accepts — plus a **weekly scheduled audit** that re-checks
+advisories against the lockfile and the latest release binary (`cargo
+audit bin`, via the embedded cargo-auditable data) and fails when the
+pinned Miri/fuzzing nightly grows stale,
 
 * **Fuzzing** — a [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz)
 (libFuzzer) harness in `fuzz/`, smoke-run in CI so it can never rot, ready
@@ -51,8 +54,10 @@ with all three, plus a **mutation canary** in the verification suite that
 plants a bug and proves the tests catch it,
 
 * **Code coverage** via
-[cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov), uploaded
-through the *Codecov* CI integration,
+[cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov), with a line
+coverage threshold enforced in the CI job itself (no external service
+required) and an optional *Codecov* dashboard upload when a
+`CODECOV_TOKEN` secret is present,
 
 * **CI for Linux, macOS and Windows** as a single matrix using *GitHub
 Actions* — with clippy, rustfmt, docs, Miri, cargo-deny, fuzz-smoke,
@@ -121,9 +126,9 @@ src/              the library (unit tests inline) and optional binary entry poin
 tests/            integration tests exercising the public API
 benches/          Criterion benchmark harness (`make bench`)
 fuzz/             cargo-fuzz (libFuzzer) harness, smoke-run in CI
-scripts/          verify.sh / verify-docker.sh / setup.sh / check-toolchain.sh
+scripts/          verify.sh / verify-docker.sh / setup.sh and the check-*.sh gates
 Dockerfile        the pinned toolchain image CI and `make shell` share
-.github/          CI, CodeQL, Scorecard and Release workflows (SHA-pinned), Dependabot
+.github/          CI, CodeQL, Audit, Scorecard and Release workflows (SHA-pinned), Dependabot
 ```
 
 ## Development workflow
@@ -177,11 +182,13 @@ make fuzz      # libFuzzer, 60 seconds of coverage-guided input
 make bench     # Criterion benchmarks, report in target/criterion/
 ```
 
-To run the **full verification suite** — toolchain-pin consistency, a clean
-release build with warnings-as-errors and the full test suite, clippy, the
-rustdoc gate, Miri, cargo-deny, a fuzz smoke run, an executable smoke test,
-package purity, a mutation canary proving the tests catch planted bugs, and
-a rustfmt check — with a running pass/fail tally and a final summary:
+To run the **full verification suite** — toolchain-pin consistency, the
+required-checks list in `scripts/setup.sh` matching the CI job names, a
+clean release build with warnings-as-errors and the full test suite,
+clippy, the rustdoc gate, Miri, cargo-deny, a fuzz smoke run, an executable
+smoke test, package purity, a mutation canary proving the tests catch
+planted bugs, and a rustfmt check — with a running pass/fail tally and a
+final summary:
 
 ```bash
 make verify        # or directly: ./scripts/verify.sh
@@ -245,7 +252,7 @@ renames the crate after your repository (the package name, both lockfiles,
 the fuzz crate, every `use` path and the README badge/links) and enables
 the repo-level GitHub settings templates cannot carry over (secret
 scanning, push protection, private vulnerability reporting, Dependabot
-alerts + security updates, and branch protection requiring the eleven CI
+alerts + security updates, and branch protection requiring the fifteen CI
 checks):
 
 ```bash
@@ -254,6 +261,11 @@ checks):
 
 It needs the [GitHub CLI](https://cli.github.com) authenticated as a repo
 admin, and it is safe to re-run.
+
+Optionally, add a `CODECOV_TOKEN` repository secret to feed the Codecov
+dashboard. The token is not required: the coverage gate itself is enforced
+inside the CI job, and the upload step simply skips when the secret is
+absent.
 
 ## License
 
