@@ -81,7 +81,19 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
+          fulcio.sigstore.dev:443
+          rekor.sigstore.dev:443
+          tuf-repo-cdn.sigstore.dev:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
@@ -122,7 +134,19 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
+          fulcio.sigstore.dev:443
+          rekor.sigstore.dev:443
+          tuf-repo-cdn.sigstore.dev:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
