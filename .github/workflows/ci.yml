@@ -40,7 +40,21 @@ jobs:
       if: runner.os == 'Linux'
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -64,7 +78,21 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -83,7 +111,21 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -100,7 +142,21 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -124,7 +180,21 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -153,7 +223,21 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -169,7 +253,21 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -200,7 +298,25 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
+          cli.codecov.io:443
+          api.codecov.io:443
+          ingest.codecov.io:443
+          storage.googleapis.com:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -234,7 +350,21 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -251,7 +381,21 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -270,7 +414,21 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
       with:
-        egress-policy: audit
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
