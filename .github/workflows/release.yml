@@ -52,7 +52,7 @@ jobs:
     # there.
     - name: harden runner (Linux)
       if: runner.os == 'Linux'
-      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
         egress-policy: audit
 
@@ -64,7 +64,7 @@ jobs:
       run: rustup toolchain install
 
     - name: install cargo-auditable
-      uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
+      uses: taiki-e/install-action@0758d235715de2f3551eacc980d9ae8fce9342c3 # v2.87.3
       with:
         tool: cargo-auditable
 
@@ -126,7 +126,7 @@ jobs:
     timeout-minutes: 30
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -158,7 +158,7 @@ jobs:
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
     - name: install cargo-semver-checks
-      uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
+      uses: taiki-e/install-action@0758d235715de2f3551eacc980d9ae8fce9342c3 # v2.87.3
       with:
         tool: cargo-semver-checks
 
@@ -186,7 +186,7 @@ jobs:
 
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
         egress-policy: block
         allowed-endpoints: >
