@@ -4,6 +4,9 @@ on:
   # Unfiltered pull_request: filtering on the default branch leaves a PR
   # stacked on another feature branch with no checks at all.
   pull_request:
+  # A merge queue tests the queued merge of this PR with the base branch;
+  # the required checks must report on that event or the queue waits forever.
+  merge_group:
   push:
     branches: [ main, master ]
 
