@@ -32,6 +32,11 @@ Rust API Guidelines material) configured once in `Cargo.toml [lints]` and
 applied identically in editors, locally and in CI; warnings are promoted to
 errors on every merge,
 
+* **A release size budget** — the stripped release binary is measured in
+bytes and gated against the committed [`size-budget.txt`](size-budget.txt),
+with a canary proving the gate fails one byte over; growth is a reviewed
+change to the budget, never an accident,
+
 * **Miri** — the test suite runs under the
 [Miri](https://github.com/rust-lang/miri) interpreter on every pull
 request, flagging undefined behavior the moment any `unsafe` enters the
@@ -189,9 +194,9 @@ To run the **full verification suite** — toolchain-pin consistency, the
 required-checks list in `scripts/setup.sh` matching the CI job names, a
 clean release build with warnings-as-errors and the full test suite,
 clippy, the rustdoc gate, Miri, cargo-deny, a fuzz smoke run, an executable
-smoke test, package purity, a mutation canary proving the tests catch
-planted bugs, and a rustfmt check — with a running pass/fail tally and a
-final summary:
+smoke test, the release size budget and its canary, package purity, a
+mutation canary proving the tests catch planted bugs, and a rustfmt check —
+with a running pass/fail tally and a final summary:
 
 ```bash
 make verify        # or directly: ./scripts/verify.sh
@@ -235,6 +240,10 @@ that is not a failing check decays, so each source is wired to one:
 * **ANSSI's Secure Rust Guidelines** — overflow checks in release,
   `unwrap_used` linted in library code, errors returned instead of
   panicking on untrusted input,
+* **size budgets** — the stripped release binary against a committed
+  byte budget ([size-budget.txt](size-budget.txt)), the sibling of the web
+  template's bundle budget; unlike timings, bytes are deterministic on
+  shared runners, so this one is a real gate, and its canary proves it fails,
 * **fuzzing as standard practice** (cargo-fuzz/libFuzzer) — a harness CI
   smoke-runs on every PR, ready for real parsers and input paths,
 * **API stability and test honesty as gates** — releases run

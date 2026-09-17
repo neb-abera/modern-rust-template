@@ -33,8 +33,9 @@ tested without scaffolding.
 
 `./scripts/verify.sh` is the local mirror of CI: build and tests with
 warnings as errors, clippy, rustdoc, Miri, cargo-deny, a fuzz smoke run,
-package purity, the mutation canary, rustfmt, and consistency checks on the
-toolchain pins and the required-contexts list.
+the release size budget and its canary, package purity, the mutation
+canary, rustfmt, and consistency checks on the toolchain pins and the
+required-contexts list.
 
 Every pull request must pass the required CI checks before it can merge —
 they are enforced by branch protection, for admins too. There is no way to
@@ -47,6 +48,15 @@ lint the workflows and scripts, and `scripts/check-required-contexts.sh`
 fails if a PR-gating job is added or renamed without updating the
 branch-protection list in `scripts/setup.sh` — so if you add a CI job,
 update that list in the same PR.
+
+## Raising the size budget
+
+The suite fails when the stripped release binary outgrows the byte budget
+committed in [size-budget.txt](size-budget.txt). If the growth is intended,
+raise the budget deliberately, in the same pull request as the change that
+needs it: take the measured size from the failing check's message
+(`make verify-docker`), set the budget to roughly 20% above it, and say in
+the pull request what the bytes bought. Never raise it just to get to green.
 
 ## Pull requests
 

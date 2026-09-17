@@ -1,0 +1,8 @@
+# Size budget for the stripped release binary, in bytes. Enforced by
+# scripts/check-size-budget.sh (a verify.sh and CI gate), measured in the
+# Linux toolchain container.
+#
+# Set roughly 20% above the measured size (307256 bytes when this was set).
+# The template's placeholder code is tiny, so expect to raise this with your
+# first real code — deliberately, as described in CONTRIBUTING.md.
+368707
