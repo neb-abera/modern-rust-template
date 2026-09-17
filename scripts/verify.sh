@@ -14,9 +14,13 @@
 #    7. cargo-deny: no security advisories, license or source violations
 #    8. fuzz smoke: the libFuzzer target builds and survives a short run
 #    9. executable mode builds and runs
-#   10. the published package contains only this project's intended files
-#   11. mutation canary: plant a bug and confirm the tests catch it
-#   12. sources are rustfmt clean
+#   10. size budget: the stripped release binary fits the committed byte
+#       budget (size-budget.txt)
+#   11. size-budget canary: the size gate fails one byte over budget, and
+#       on a missing artifact or budget
+#   12. the published package contains only this project's intended files
+#   13. mutation canary: plant a bug and confirm the tests catch it
+#   14. sources are rustfmt clean
 #
 # Exit code 0 means everything passed.
 
@@ -42,7 +46,7 @@ else
   RED=""; GREEN=""; YELLOW=""; BOLD=""; RESET=""
 fi
 
-CHECKS_TOTAL=12
+CHECKS_TOTAL=14
 CHECKS_RUN=0
 CHECKS_PASSED=0
 CHECKS_FAILED=0
@@ -190,6 +194,30 @@ if cargo build --release --locked > "$LOG" 2>&1 \
 else
   tail -20 "$LOG"
   fail "Executable mode"
+fi
+
+# The release artifact the size checks measure: the binary cargo names after
+# the crate, so a rename (e.g. via scripts/setup.sh) needs no edits here.
+ARTIFACT="target/release/$PROJ"
+
+banner "Size budget: stripped release binary vs size-budget.txt"
+if [ "$(uname -s)" != "Linux" ]; then
+  skip "Size budget (the budget is set for the Linux toolchain container; use make verify-docker)"
+elif ./scripts/check-size-budget.sh "$ARTIFACT" size-budget.txt > "$LOG" 2>&1; then
+  cat "$LOG"
+  pass "Size budget: the stripped release binary fits the committed budget"
+else
+  cat "$LOG"
+  fail "Size budget (artifact over budget, or artifact/budget missing)"
+fi
+
+banner "Size-budget canary: does the size gate fail when it should?"
+if ./scripts/check-size-budget.sh --self-test "$ARTIFACT" > "$LOG" 2>&1; then
+  cat "$LOG"
+  pass "Size-budget canary: one byte over, a missing artifact and a missing budget all fail"
+else
+  cat "$LOG"
+  fail "Size-budget canary (the size gate did NOT fail when it should, or there was no artifact to test it on)"
 fi
 
 banner "Package purity: cargo package ships only intended files"

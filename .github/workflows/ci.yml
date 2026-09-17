@@ -77,6 +77,24 @@ jobs:
     - name: run tests
       run: cargo test --release --locked 2>&1 | tee test-output.log
 
+    # Size budget, on the Linux leg only (the committed budget is set for
+    # Linux x86-64): the same script verify.sh runs, against the release
+    # binary built above. The crate name is read from Cargo.toml, as in
+    # verify.sh, so a renamed project needs no edits here. The second step
+    # is the gate's own canary: one byte over budget, a missing artifact
+    # and a missing budget must each fail.
+    - name: check the release binary size budget
+      if: runner.os == 'Linux'
+      run: |
+        proj=$(sed -n 's/^name = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+        ./scripts/check-size-budget.sh "target/release/$proj" size-budget.txt
+
+    - name: prove the size gate can fail (size-budget canary)
+      if: runner.os == 'Linux'
+      run: |
+        proj=$(sed -n 's/^name = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+        ./scripts/check-size-budget.sh --self-test "target/release/$proj"
+
     # Job summary: total tests passed/failed, parsed from the cargo test
     # output captured above — the tests are not re-run. Guarded on the env
     # var so the step is a no-op anywhere GITHUB_STEP_SUMMARY is absent.
