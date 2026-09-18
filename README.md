@@ -253,6 +253,13 @@ that is not a failing check decays, so each source is wired to one:
   built with **cargo-auditable** so `cargo audit bin` can scan shipped
   artifacts for CVEs without their source.
 
+Not here on purpose: the web template's held-majors check, which catches a
+dependency major Dependabot stays silent about (an npm peer conflict, a
+NuGet framework floor). Cargo has no peer ranges and Dependabot does not
+consult `rust-version`, so a crate major it offers that needs a newer
+toolchain fails the pull request red rather than never arriving; the
+`--locked` builds and the MSRV check are where that lands.
+
 What a linter cannot check — naming things well, small functions, honest
 tests (*Code Complete*, *Clean Code*, *Refactoring*) — is what the mutation
 canary, the test-first workflow and code review are for.
