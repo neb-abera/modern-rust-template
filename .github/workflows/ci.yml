@@ -362,9 +362,6 @@ jobs:
     # used in `if:` directly, so it is routed through job-level env.
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      # The line-coverage floor, single-sourced for the gate below and the
-      # job summary.
-      COVERAGE_FLOOR: 70
     steps:
     - name: harden runner
       uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
@@ -406,11 +403,16 @@ jobs:
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
     # The threshold is enforced here, in-job, so the coverage gate is real
-    # with no external service. The template's placeholder code measures
-    # 76% of lines (src/main.rs is exercised by the verify suite's
-    # executable smoke test, not by unit tests); a floor of 70 leaves a
-    # little headroom out of the box. Raise COVERAGE_FLOOR (job env above)
-    # as your project's tests grow.
+    # with no external service. The floor lives in coverage-floor.txt, the
+    # one place it is written down (with the reasoning behind its value),
+    # and scripts/verify.sh's coverage check reads the same file, so this
+    # job and the local suite cannot drift apart.
+    - name: read the coverage floor
+      run: |
+        floor=$(grep -Ev '^[[:space:]]*(#|$)' coverage-floor.txt | tr -d '[:space:]')
+        [ -n "$floor" ] || { echo "coverage-floor.txt holds no number" >&2; exit 1; }
+        echo "COVERAGE_FLOOR=$floor" >> "$GITHUB_ENV"
+
     - name: measure coverage (fail under the line floor)
       run: cargo llvm-cov --locked --fail-under-lines "$COVERAGE_FLOOR" --lcov --output-path lcov.info
 
