@@ -32,7 +32,8 @@ tested without scaffolding.
 ## The verify suite and required checks
 
 `./scripts/verify.sh` is the local mirror of CI: build and tests with
-warnings as errors, clippy, rustdoc, Miri, cargo-deny, a fuzz smoke run,
+warnings as errors, line coverage against the floor in `coverage-floor.txt`,
+clippy, rustdoc, Miri, cargo-deny, a fuzz smoke run,
 the release size budget and its canary, package purity, the mutation
 canary, rustfmt, and consistency checks on the toolchain pins and the
 required-contexts list.
