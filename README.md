@@ -61,9 +61,9 @@ plants a bug and proves the tests catch it,
 
 * **Code coverage** via
 [cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov), with a line
-coverage threshold enforced in the CI job itself (no external service
-required) and an optional *Codecov* dashboard upload when a
-`CODECOV_TOKEN` secret is present,
+coverage floor (`coverage-floor.txt`) enforced by the verification suite
+and the CI job alike (no external service required) and an optional
+*Codecov* dashboard upload when a `CODECOV_TOKEN` secret is present,
 
 * **CI for Linux, macOS and Windows** as a single matrix using *GitHub
 Actions* — with clippy, rustfmt, docs, Miri, cargo-deny, fuzz-smoke,
@@ -283,8 +283,9 @@ admin, and it is safe to re-run.
 
 Optionally, add a `CODECOV_TOKEN` repository secret to feed the Codecov
 dashboard. The token is not required: the coverage gate itself is enforced
-inside the CI job, and the upload step simply skips when the secret is
-absent — the coverage badge just reads "unknown" until the token is added.
+by the verification suite and the CI job, and the upload step simply skips
+when the secret is absent — the coverage badge just reads "unknown" until
+the token is added.
 
 ## License
 
