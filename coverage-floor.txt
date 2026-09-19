@@ -1,0 +1,11 @@
+# Line-coverage floor, in percent, for the test suite's coverage of the crate
+# as cargo llvm-cov measures it. Enforced by cargo llvm-cov --fail-under-lines
+# in scripts/verify.sh (the coverage check) and in the CI coverage job
+# (.github/workflows/ci.yml); both read this file, so the two gates cannot
+# drift apart. Blank lines and `#` comments are ignored.
+#
+# The template's placeholder code measures 76% of lines (src/main.rs is
+# exercised by the verify suite's executable smoke test, not by unit tests),
+# so 70 leaves a little headroom out of the box. Raise it as your project's
+# tests grow — deliberately, as described in CONTRIBUTING.md.
+70

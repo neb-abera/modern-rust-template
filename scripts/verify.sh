@@ -8,19 +8,22 @@
 #    2. setup.sh's required branch-protection contexts match the CI job names
 #    3. clean release build with warnings-as-errors + full test suite
 #       (unit, integration and documentation tests)
-#    4. clippy is clean (Rust API Guidelines material, pedantic set)
-#    5. rustdoc builds with no warnings (missing docs, broken links)
-#    6. the tests pass under Miri (undefined-behavior detection)
-#    7. cargo-deny: no security advisories, license or source violations
-#    8. fuzz smoke: the libFuzzer target builds and survives a short run
-#    9. executable mode builds and runs
-#   10. size budget: the stripped release binary fits the committed byte
+#    4. line coverage: the same tests under cargo llvm-cov cover the crate
+#       at or above the floor in coverage-floor.txt (skipped if
+#       cargo-llvm-cov is missing)
+#    5. clippy is clean (Rust API Guidelines material, pedantic set)
+#    6. rustdoc builds with no warnings (missing docs, broken links)
+#    7. the tests pass under Miri (undefined-behavior detection)
+#    8. cargo-deny: no security advisories, license or source violations
+#    9. fuzz smoke: the libFuzzer target builds and survives a short run
+#   10. executable mode builds and runs
+#   11. size budget: the stripped release binary fits the committed byte
 #       budget (size-budget.txt)
-#   11. size-budget canary: the size gate fails one byte over budget, and
+#   12. size-budget canary: the size gate fails one byte over budget, and
 #       on a missing artifact or budget
-#   12. the published package contains only this project's intended files
-#   13. mutation canary: plant a bug and confirm the tests catch it
-#   14. sources are rustfmt clean
+#   13. the published package contains only this project's intended files
+#   14. mutation canary: plant a bug and confirm the tests catch it
+#   15. sources are rustfmt clean
 #
 # Exit code 0 means everything passed.
 
@@ -36,6 +39,11 @@ PROJ=$(sed -n 's/^name = "\(.*\)"$/\1/p' Cargo.toml | head -1)
 # the single place it is written down.
 NIGHTLY=$(sed -n 's/^ENV NIGHTLY_TOOLCHAIN=\(.*\)$/\1/p' Dockerfile)
 
+# The line-coverage floor, in percent, read from coverage-floor.txt: the one
+# place it is written down. CI's coverage job reads the same file, so the
+# two gates cannot drift apart. Blank lines and `#` comments are ignored.
+COVERAGE_FLOOR=$(grep -Ev '^[[:space:]]*(#|$)' coverage-floor.txt 2> /dev/null | tr -d '[:space:]')
+
 # Warnings are errors for every check in this suite; the lint *set* lives
 # in Cargo.toml [lints], this only promotes its findings from warn to deny.
 export RUSTFLAGS="-D warnings"
@@ -46,13 +54,17 @@ else
   RED=""; GREEN=""; YELLOW=""; BOLD=""; RESET=""
 fi
 
-CHECKS_TOTAL=14
+CHECKS_TOTAL=15
 CHECKS_RUN=0
 CHECKS_PASSED=0
 CHECKS_FAILED=0
 CHECKS_SKIPPED=0
 TESTS_PASSED=0
 TESTS_FAILED=0
+# Line-coverage percentage, e.g. "97.5%", set by the coverage check; the
+# summary lines are omitted when it is empty (the check skipped or was not
+# selected).
+COVERAGE_PCT=""
 FAILED_NAMES=""
 LOG="$(mktemp)"
 trap 'rm -f "$LOG"' EXIT
@@ -119,6 +131,34 @@ else
     count_cargo_test; pass "Release: clean build, all tests green"
   else
     count_cargo_test; fail "Release build/tests"
+  fi
+fi
+
+banner "Line coverage: test suite under cargo llvm-cov vs coverage-floor.txt"
+if [ -z "$COVERAGE_FLOOR" ]; then
+  fail "Line coverage (coverage-floor.txt is missing or holds no number)"
+elif ! command -v cargo-llvm-cov > /dev/null; then
+  skip "Line coverage (cargo-llvm-cov not installed; available in the Docker toolchain image)"
+else
+  # The same invocation as CI's coverage job, lcov report included; the
+  # percentage is read back from that report (LH/LF sums) as CI's summary
+  # does. A stale report is removed first so a failed build cannot be
+  # mistaken for a coverage shortfall.
+  rm -f lcov.info
+  cargo llvm-cov --locked --fail-under-lines "$COVERAGE_FLOOR" --lcov --output-path lcov.info > "$LOG" 2>&1
+  llvm_cov_status=$?
+  count_cargo_test
+  if [ -f lcov.info ]; then
+    COVERAGE_PCT=$(awk -F: '/^LF:/ {lf+=$2} /^LH:/ {lh+=$2} END {if (lf > 0) printf "%.2f%%", 100*lh/lf}' lcov.info)
+  fi
+  if [ "$llvm_cov_status" -eq 0 ]; then
+    pass "Line coverage: ${COVERAGE_PCT:-?} of lines, at or above the ${COVERAGE_FLOOR}% floor"
+  elif [ -n "$COVERAGE_PCT" ]; then
+    tail -20 "$LOG"
+    fail "Line coverage (${COVERAGE_PCT} of lines, under the ${COVERAGE_FLOOR}% floor)"
+  else
+    tail -20 "$LOG"
+    fail "Line coverage (coverage build/tests failed)"
   fi
 fi
 
@@ -271,11 +311,14 @@ printf 'Checks : %s%d passed%s, %s%d failed%s, %d skipped (of %d)\n' \
   "$GREEN" "$CHECKS_PASSED" "$RESET" "$RED" "$CHECKS_FAILED" "$RESET" "$CHECKS_SKIPPED" "$CHECKS_TOTAL"
 printf 'Tests  : %s%d passed%s, %s%d failed%s\n' \
   "$GREEN" "$TESTS_PASSED" "$RESET" "$RED" "$TESTS_FAILED" "$RESET"
+if [ -n "$COVERAGE_PCT" ]; then
+  printf 'Lines  : %s covered (floor %s%%)\n' "$COVERAGE_PCT" "$COVERAGE_FLOOR"
+fi
 
 # CI parity: when running as a GitHub Actions step (GITHUB_STEP_SUMMARY is
 # set), append the same tallies as a markdown job summary — plus the line
-# coverage when an lcov report from a prior step is present. Local runs
-# (env var unset) are unchanged.
+# coverage measured by the coverage check. Local runs (env var unset) are
+# unchanged.
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
   {
     printf '### Verification suite\n\n'
@@ -284,9 +327,8 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     printf '| %d of %d | %d | %d | %d | %d |\n' \
       "$CHECKS_PASSED" "$CHECKS_TOTAL" "$CHECKS_FAILED" "$CHECKS_SKIPPED" \
       "$TESTS_PASSED" "$TESTS_FAILED"
-    if [ -f lcov.info ]; then
-      cov=$(awk -F: '/^LF:/ {lf+=$2} /^LH:/ {lh+=$2} END {if (lf > 0) printf "%.2f%%", 100*lh/lf}' lcov.info)
-      [ -n "$cov" ] && printf '\nLine coverage: %s\n' "$cov"
+    if [ -n "$COVERAGE_PCT" ]; then
+      printf '\nLine coverage: %s (gate: >= %s%%)\n' "$COVERAGE_PCT" "$COVERAGE_FLOOR"
     fi
     if [ "$CHECKS_FAILED" -gt 0 ]; then
       printf '\nFailed checks:\n\n'
