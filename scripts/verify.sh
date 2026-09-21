@@ -6,24 +6,28 @@
 #
 #    1. the toolchain pins (rust-toolchain.toml / Dockerfile / Cargo.toml) agree
 #    2. setup.sh's required branch-protection contexts match the CI job names
-#    3. clean release build with warnings-as-errors + full test suite
+#    3. prose: every tracked Markdown file passes the writing rules in
+#       .vale/styles/Abera (the checker first proves every rule fires on a
+#       fixture and that clean prose passes; skipped if Docker is missing,
+#       as inside the toolchain container, where CI's prose job covers it)
+#    4. clean release build with warnings-as-errors + full test suite
 #       (unit, integration and documentation tests)
-#    4. line coverage: the same tests under cargo llvm-cov cover the crate
+#    5. line coverage: the same tests under cargo llvm-cov cover the crate
 #       at or above the floor in coverage-floor.txt (skipped if
 #       cargo-llvm-cov is missing)
-#    5. clippy is clean (Rust API Guidelines material, pedantic set)
-#    6. rustdoc builds with no warnings (missing docs, broken links)
-#    7. the tests pass under Miri (undefined-behavior detection)
-#    8. cargo-deny: no security advisories, license or source violations
-#    9. fuzz smoke: the libFuzzer target builds and survives a short run
-#   10. executable mode builds and runs
-#   11. size budget: the stripped release binary fits the committed byte
+#    6. clippy is clean (Rust API Guidelines material, pedantic set)
+#    7. rustdoc builds with no warnings (missing docs, broken links)
+#    8. the tests pass under Miri (undefined-behavior detection)
+#    9. cargo-deny: no security advisories, license or source violations
+#   10. fuzz smoke: the libFuzzer target builds and survives a short run
+#   11. executable mode builds and runs
+#   12. size budget: the stripped release binary fits the committed byte
 #       budget (size-budget.txt)
-#   12. size-budget canary: the size gate fails one byte over budget, and
+#   13. size-budget canary: the size gate fails one byte over budget, and
 #       on a missing artifact or budget
-#   13. the published package contains only this project's intended files
-#   14. mutation canary: plant a bug and confirm the tests catch it
-#   15. sources are rustfmt clean
+#   14. the published package contains only this project's intended files
+#   15. mutation canary: plant a bug and confirm the tests catch it
+#   16. sources are rustfmt clean
 #
 # Exit code 0 means everything passed.
 
@@ -54,7 +58,7 @@ else
   RED=""; GREEN=""; YELLOW=""; BOLD=""; RESET=""
 fi
 
-CHECKS_TOTAL=15
+CHECKS_TOTAL=16
 CHECKS_RUN=0
 CHECKS_PASSED=0
 CHECKS_FAILED=0
@@ -118,6 +122,25 @@ if ./scripts/check-required-contexts.sh; then
   pass "setup.sh's branch-protection contexts match the PR-triggered CI job names"
 else
   fail "Required-contexts drift"
+fi
+
+banner "Prose: every tracked Markdown file passes the writing rules"
+# The rules run in the Vale image the Dockerfile pins (the `vale` stage), so
+# this check needs Docker. Inside the toolchain container (make
+# verify-docker) there is none and the check skips; CI's prose job runs it
+# on the runner. The self-test runs first, every time: one fixture carries
+# one violation per rule and every rule must fire on it, another is clean
+# and must pass, so a rule that has stopped matching is caught here rather
+# than trusted.
+if ! command -v docker > /dev/null; then
+  skip "Prose (docker not installed; CI's prose job runs this check on the runner)"
+elif ./scripts/check-prose.sh --self-test > "$LOG" 2>&1 \
+   && ./scripts/check-prose.sh >> "$LOG" 2>&1; then
+  grep -E '^self-test' "$LOG" || true
+  pass "Prose passes .vale/styles/Abera"
+else
+  tail -40 "$LOG"
+  fail "Prose (a rule violation in a Markdown file, or a broken self-test)"
 fi
 
 banner "Release build + full test suite (warnings as errors)"

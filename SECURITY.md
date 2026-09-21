@@ -24,8 +24,8 @@ What to expect:
 
 Projects generated from this template ship with:
 
-* `unsafe_code = "forbid"` — the compiler proves the crate contains no
-  unsafe Rust; if a project relaxes it to `deny` with per-site allows, the
+* `unsafe_code = "forbid"`: the compiler proves the crate contains no
+  unsafe Rust. If a project relaxes it to `deny` with per-site allows, the
   Miri CI gate interprets the test suite and flags undefined behavior,
 * integer-overflow checks kept on in release builds
   (`overflow-checks = true` in `Cargo.toml`), so an overflow is a clean
@@ -33,8 +33,8 @@ Projects generated from this template ship with:
 * a cargo-deny gate on every pull request: RustSec security advisories,
   license allowlist, duplicate/wildcard bans and a crates.io-only source
   policy (`deny.toml`),
-* `--locked` builds everywhere — the committed `Cargo.lock` is the only
-  dependency resolution CI will accept,
+* `--locked` builds everywhere: the committed `Cargo.lock` is the only
+  dependency resolution CI accepts,
 * CodeQL static analysis of the Rust sources and the workflow files on
   every pull request and weekly,
 * GitHub Actions pinned to full commit SHAs and the Docker base image
