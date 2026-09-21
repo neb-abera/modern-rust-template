@@ -1,3 +1,8 @@
+# Prose linter, for scripts/check-prose.sh. Never built into anything: the
+# stage exists so the image is a FROM line Dependabot sees and bumps, and the
+# script reads it from here rather than pinning a version of its own.
+FROM jdkato/vale:v3.22.0@sha256:0ef74c2c8331a2cc8739ecc8b4f7cc6672e61524c3697e8c8857bc86b724a28e AS vale
+
 # Toolchain image: every compiler and tool the project uses, pinned, so
 # every developer and CI build with the same versions. `make shell` opens a
 # development shell in it; `make verify-docker` runs the full verification

@@ -1,4 +1,4 @@
-.PHONY: test lint format docs coverage miri fuzz bench verify verify-docker shell install help
+.PHONY: test lint format docs coverage miri fuzz bench verify verify-docker shell install prose help
 .DEFAULT_GOAL := help
 
 define PRINT_HELP_PYSCRIPT
@@ -61,3 +61,7 @@ shell: ## open a development shell inside the Docker toolchain image
 
 install: ## install the release binary into ~/.cargo/bin
 	cargo install --path . --locked
+
+prose: ## lint every tracked Markdown file against the writing rules (.vale/styles/Abera)
+	./scripts/check-prose.sh --self-test
+	./scripts/check-prose.sh

@@ -1,0 +1,23 @@
+# Files this repository shares with modern-webapp-template and must keep
+# byte-identical to its default branch. A change to one of these lands in
+# the template first. The template's scripts/check-template-parity.sh reads
+# a list in this format and compares each path with the template on every
+# pull request. This repository does not run that check yet.
+#
+# Format: one path per line; the first line names the template.
+template: neb-abera/modern-webapp-template
+scripts/check-prose.sh
+.vale.ini
+.vale/fixtures/fails.md
+.vale/fixtures/passes.md
+.vale/styles/Abera/Buzzwords.yml
+.vale/styles/Abera/Cliches.yml
+.vale/styles/Abera/Dash.yml
+.vale/styles/Abera/Exclamation.yml
+.vale/styles/Abera/Hedges.yml
+.vale/styles/Abera/Intensifiers.yml
+.vale/styles/Abera/Jargon.yml
+.vale/styles/Abera/Pivot.yml
+.vale/styles/Abera/Preamble.yml
+.vale/styles/Abera/Rhetorical.yml
+.vale/styles/Abera/Semicolon.yml
