@@ -4,94 +4,100 @@
 
 # Modern Rust Template
 
-A template for modern Rust projects, aimed to be an easy to use starting
-point that is highly performant, secure by design and works out of the box —
-the Rust sibling of
+A starting point for Rust projects: a pinned toolchain, release builds tuned
+for performance, secure by design, the Rust sibling of
 [modern-cpp-template](https://github.com/neb-abera/modern-cpp-template).
 
 ## Features
 
-* **A pinned toolchain everywhere** — `rust-toolchain.toml` pins the exact
-stable compiler and rustup installs it automatically on every machine and CI
-runner; the Docker toolchain image and the crate's declared MSRV are held in
-lockstep with it by a CI gate (`scripts/check-toolchain.sh`), so the three
-can never drift apart silently,
+* **A pinned toolchain everywhere.** `rust-toolchain.toml` pins the stable
+  compiler and rustup installs it on every machine and CI runner. The Docker
+  toolchain image and the crate's declared MSRV are held in lockstep with it
+  by a CI gate (`scripts/check-toolchain.sh`).
 
-* **Performance defaults** — release builds use whole-program LTO and a
-single codegen unit, and a **Criterion benchmark harness** (`benches/`,
-`make bench`) is wired in so performance work starts with measurements, not
-guesses,
+* **Performance defaults.** Release builds use whole-program LTO and a
+  single codegen unit. A Criterion benchmark harness (`benches/`,
+  `make bench`) is wired in so performance work starts with measurements.
 
-* **Secure by design** — `unsafe_code = "forbid"`, integer-overflow checks
-kept on in release builds, panicking `unwrap` linted against in library
-code, and placeholder code that models returning errors instead of crashing
-on untrusted input,
+* **Secure by design.** `unsafe_code = "forbid"`, integer-overflow checks
+  kept on in release builds, panicking `unwrap` linted against in library
+  code, and placeholder code that returns errors on untrusted input instead
+  of crashing.
 
-* **Static analysis as a gate** — **clippy** with the pedantic set (the
-Rust API Guidelines material) configured once in `Cargo.toml [lints]` and
-applied identically in editors, locally and in CI; warnings are promoted to
-errors on every merge,
+* **Static analysis as a gate.** clippy with the pedantic set (the Rust API
+  Guidelines material) configured once in `Cargo.toml [lints]` and applied
+  identically in editors, locally and in CI. Warnings are errors on every
+  merge.
 
-* **A release size budget** — the stripped release binary is measured in
-bytes and gated against the committed [`size-budget.txt`](size-budget.txt),
-with a canary proving the gate fails one byte over; growth is a reviewed
-change to the budget, never an accident,
+* **A release size budget.** The stripped release binary is measured in
+  bytes against the committed [`size-budget.txt`](size-budget.txt), with a
+  canary that proves the gate fails one byte over. Growth is a reviewed
+  change to the budget.
 
-* **Miri** — the test suite runs under the
-[Miri](https://github.com/rust-lang/miri) interpreter on every pull
-request, flagging undefined behavior the moment any `unsafe` enters the
-project,
+* **Miri.** The test suite runs under the
+  [Miri](https://github.com/rust-lang/miri) interpreter on every pull
+  request, flagging undefined behavior the moment any `unsafe` enters the
+  project.
 
-* **Supply-chain gate** — [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)
-checks every pull request for RustSec advisories, license-allowlist
-violations, duplicate crates and non-crates.io sources (`deny.toml`), with
-`--locked` builds everywhere so the committed `Cargo.lock` is the only
-resolution CI accepts — plus a **weekly scheduled audit** that re-checks
-advisories against the lockfile and the latest release binary (`cargo
-audit bin`, via the embedded cargo-auditable data) and fails when the
-pinned Miri/fuzzing nightly grows stale,
+* **Supply-chain gate.** [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)
+  checks every pull request for RustSec advisories, license-allowlist
+  violations, duplicate crates and sources other than crates.io
+  (`deny.toml`). `--locked` builds everywhere, so the committed `Cargo.lock`
+  is the only resolution CI accepts. A weekly scheduled audit re-checks
+  advisories against the lockfile and the latest release binary
+  (`cargo audit bin`, through the embedded cargo-auditable data) and fails
+  when the pinned Miri and fuzzing nightly grows stale.
 
-* **Fuzzing** — a [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz)
-(libFuzzer) harness in `fuzz/`, smoke-run in CI so it can never rot, ready
-to point at your parsers and input paths,
+* **Fuzzing.** A [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz)
+  (libFuzzer) harness in `fuzz/`, smoke-run in CI so it cannot rot, ready to
+  point at your parsers and input paths.
 
-* **Unit, integration and documentation tests** — the placeholder API ships
-with all three, plus a **mutation canary** in the verification suite that
-plants a bug and proves the tests catch it,
+* **Unit, integration and documentation tests.** The placeholder API ships
+  with all three, plus a mutation canary in the verification suite that
+  plants a bug and proves the tests catch it.
 
-* **Code coverage** via
-[cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov), with a line
-coverage floor (`coverage-floor.txt`) enforced by the verification suite
-and the CI job alike (no external service required) and an optional
-*Codecov* dashboard upload when a `CODECOV_TOKEN` secret is present,
+* **Code coverage** through
+  [cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov), with a line
+  coverage floor (`coverage-floor.txt`) enforced by the verification suite
+  and the CI job alike, and an optional Codecov dashboard upload when a
+  `CODECOV_TOKEN` secret is present.
 
-* **CI for Linux, macOS and Windows** as a single matrix using *GitHub
-Actions* — with clippy, rustfmt, docs, Miri, cargo-deny, fuzz-smoke,
-coverage and toolchain-pin jobs alongside, so a green run means the change
-built cleanly on all three platforms and passed every gate before it can
-merge. **CodeQL** scans the Rust sources and the workflows themselves;
-**OpenSSF Scorecard** watches the supply-chain posture,
+* **One verification suite.** `make verify` runs sixteen checks with a
+  pass/fail tally: the toolchain pins, the required-contexts list, the prose
+  check, a release build and tests with warnings as errors, line coverage
+  against the floor, clippy, rustdoc, Miri, cargo-deny, a fuzz smoke run, an
+  executable smoke test, the release size budget and its canary, package
+  purity, the mutation canary and rustfmt. The list is at the top of
+  [scripts/verify.sh](scripts/verify.sh).
 
-* **An automated release workflow** — pushing a `v*` tag builds and tests
-on Linux, macOS and Windows — plus a **fully static musl binary** for
-scratch/distroless containers and Alpine — and publishes packaged,
-debug-info-stripped binaries to a GitHub Release with **SLSA build
-provenance attestations** and an **SPDX SBOM**,
+* **CI for Linux, macOS and Windows** as one GitHub Actions matrix, with
+  clippy, rustfmt, docs, Miri, cargo-deny, fuzz smoke, coverage, prose and
+  toolchain-pin jobs alongside. A green run means the change built on all
+  three platforms and passed every gate. CodeQL scans the Rust sources and
+  the workflows. OpenSSF Scorecard watches the supply-chain posture.
 
-* **Dockerized development environment** — a toolchain image pinning the
-compiler (by digest), the Miri/fuzzing nightly and every cargo tool the
-project uses, with `make shell` for day-to-day development inside the
-container and `make verify-docker` for a full host-independent verification
-run,
+* **Releases from tags.** Pushing `v*` builds and tests on Linux, macOS and
+  Windows, plus a static musl binary for scratch and distroless containers
+  and Alpine, and publishes packaged, debug-info-stripped binaries to a
+  GitHub Release with SLSA build provenance attestations and an SPDX SBOM.
 
-* **Dependabot on every ecosystem** (cargo, the fuzz crate, GitHub Actions,
-Docker) with patch/minor updates grouped and an auto-merge workflow, so
-staying current costs no attention until a major lands or a check goes red,
+* **Docker-first.** A toolchain image pins the compiler (by digest), the
+  Miri and fuzzing nightly and every cargo tool the project uses.
+  `make shell` opens a development shell in the container.
+  `make verify-docker` runs the full suite in it.
 
-* **.md templates** for *README*, *Contributing Guidelines*, *Issues* and
-*Pull Requests*, and a **permissive license** — the template is licensed under the
-[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), with
-attribution traveling in the NOTICE file.
+* **Prose is linted.** `make prose` runs Vale with the rules in
+  `.vale/styles/Abera` over every Markdown file. Check 3 of the suite.
+
+* **Kept current by Dependabot** on every ecosystem (cargo, the fuzz crate,
+  GitHub Actions, Docker), patch and minor grouped, with an auto-merge
+  workflow. Staying current costs no attention until a major lands or a
+  check goes red.
+
+* **Templates** for README, contributing guidelines, issues and pull
+  requests, under the
+  [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), with
+  attribution in the NOTICE file.
 
 ## Getting started
 
@@ -105,27 +111,24 @@ make shell          # toolchain shell: edit on the host, build in the container
 make verify-docker  # the full verification suite (what CI runs)
 ```
 
-`make help` lists everything else (`test`, `miri`, `fuzz`, `bench`, `docs`).
+`make help` lists the rest (`test`, `miri`, `fuzz`, `bench`, `docs`,
+`prose`).
 
 ### Prerequisites
 
-**The intended development environment is the project's Docker container.**
-Every tool the project needs — the pinned stable Rust, the pinned nightly
-with Miri, clippy, rustfmt, cargo-deny, cargo-llvm-cov and cargo-fuzz — is
-pinned in the [`Dockerfile`](Dockerfile), so every developer (and CI) builds
-with the same toolchain and "works on my machine" dependency drift between
-workstations and deployment servers disappears. For that workflow you only
-need:
-
-* **Docker** - found at [https://www.docker.com/](https://www.docker.com/)
+* **Docker**, from [docker.com](https://www.docker.com/)
 * **git**
 
-If you prefer to develop directly on your machine instead, you only need
-[**rustup**](https://rustup.rs) — it reads `rust-toolchain.toml` and
-installs the pinned toolchain automatically on first use. The optional
-tools (`cargo-deny`, `cargo-llvm-cov`, `cargo-fuzz`) install with
-`cargo install --locked <tool>`; the verification suite skips their checks
-with a `[SKIP]` when they are missing rather than failing.
+Every tool the project needs is pinned in the [`Dockerfile`](Dockerfile):
+the stable Rust, the nightly with Miri, clippy, rustfmt, cargo-deny,
+cargo-llvm-cov and cargo-fuzz. Every developer and CI build with the same
+toolchain.
+
+Developing on the host instead needs [rustup](https://rustup.rs) alone. It
+reads `rust-toolchain.toml` and installs the pinned toolchain on first use.
+The optional tools (`cargo-deny`, `cargo-llvm-cov`, `cargo-fuzz`) install
+with `cargo install --locked <tool>`. The verification suite skips their
+checks with a `[SKIP]` when they are missing.
 
 ## Project layout
 
@@ -135,54 +138,54 @@ tests/            integration tests exercising the public API
 benches/          Criterion benchmark harness (`make bench`)
 fuzz/             cargo-fuzz (libFuzzer) harness, smoke-run in CI
 scripts/          verify.sh / verify-docker.sh / setup.sh and the check-*.sh gates
-Dockerfile        the pinned toolchain image CI and `make shell` share
+.vale/            the writing rules (styles/Abera) and their self-test fixtures
+Dockerfile        the pinned toolchain image CI and `make shell` share, and the prose linter stage
 .github/          CI, CodeQL, Audit, Scorecard and Release workflows (SHA-pinned), Dependabot
 ```
 
 ## Development workflow
 
-1. Write a failing test — unit, integration or doc test, whichever layer
+1. Write a failing test, unit, integration or doc test, whichever layer
    owns the behavior.
 2. `make shell` and implement until it passes.
-3. `make verify-docker` before pushing — CI gates on the identical suite, so
-   a local green run predicts the PR gate.
-4. When a milestone is confirmed working, tag it (`git tag v1.2.0 && git
-   push origin v1.2.0`) to publish provenance-attested binaries and an SBOM
-   to a GitHub Release ([SemVer](http://semver.org/)).
+3. `make verify-docker` before pushing. CI gates on the identical suite.
+4. When a milestone works, tag it (`git tag v1.2.0 && git push origin
+   v1.2.0`) to publish provenance-attested binaries and an SBOM to a GitHub
+   Release ([SemVer](http://semver.org/)).
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the pull-request process.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the pull-request process.
 
 ## Building and testing
 
-Cargo is the build system; the pinned toolchain comes from
-`rust-toolchain.toml` automatically:
+Cargo is the build system. The pinned toolchain comes from
+`rust-toolchain.toml`:
 
 ```bash
 cargo build --release
 cargo run --release
 ```
 
-The release profile is configured in `Cargo.toml` for maximum runtime
-performance (LTO, one codegen unit) with overflow checks retained.
+The release profile in `Cargo.toml` is set for runtime performance (LTO,
+one codegen unit) with overflow checks retained.
 
 ### Dependencies
 
-Add dependencies with `cargo add <crate>` (they resolve against the
-committed `Cargo.lock`). Every new dependency must clear the
+Add dependencies with `cargo add <crate>`. They resolve against the
+committed `Cargo.lock`. Every new dependency must clear the
 [cargo-deny](deny.toml) gate: no known vulnerabilities, a license on the
 allowlist and crates.io as its source.
 
 ## Running the tests
 
 The placeholder API ships with unit tests (in `src/lib.rs`), integration
-tests exercising the public API (`tests/`) and documentation tests (the
-examples in the rustdoc comments):
+tests of the public API (`tests/`) and documentation tests (the examples in
+the rustdoc comments):
 
 ```bash
 cargo test
 ```
 
-To run the tests under Miri, or the fuzzer, or the benchmarks:
+Under Miri, the fuzzer, or the benchmarks:
 
 ```bash
 make miri      # undefined-behavior detection (pinned nightly, auto-derived)
@@ -190,23 +193,17 @@ make fuzz      # libFuzzer, 60 seconds of coverage-guided input
 make bench     # Criterion benchmarks, report in target/criterion/
 ```
 
-To run the **full verification suite** — toolchain-pin consistency, the
-required-checks list in `scripts/setup.sh` matching the CI job names, a
-clean release build with warnings-as-errors and the full test suite,
-clippy, the rustdoc gate, Miri, cargo-deny, a fuzz smoke run, an executable
-smoke test, the release size budget and its canary, package purity, a
-mutation canary proving the tests catch planted bugs, and a rustfmt check —
-with a running pass/fail tally and a final summary:
+The full verification suite, with a running pass/fail tally and a final
+summary:
 
 ```bash
 make verify        # or directly: ./scripts/verify.sh
 ```
 
-To run the same suite **inside a Docker container** — so results do not
-depend on the toolchains or cargo tools installed on your machine — use the
-project's toolchain image (built automatically from the
-[`Dockerfile`](Dockerfile) on first run; the source tree is mounted
-read-only, so your checkout is never touched):
+The same suite inside the toolchain image, built from the
+[`Dockerfile`](Dockerfile) on first run, so results do not depend on the
+tools installed on your machine. The source tree is mounted read-only, so
+the checkout is never touched:
 
 ```bash
 make verify-docker # or directly: ./scripts/verify-docker.sh
@@ -220,59 +217,56 @@ make docs          # builds rustdoc HTML and opens it in your browser
 
 The documentation gate in CI builds with `RUSTDOCFLAGS="-D warnings"`, so
 missing documentation on public items and broken intra-doc links fail the
-build rather than accumulating.
+build.
 
 ## Where the practices come from
 
-The canon this template enforces, and the gate that enforces it — advice
-that is not a failing check decays, so each source is wired to one:
+Each source below is wired to a failing check.
 
-* **The Rust API Guidelines** and **Effective Rust** — clippy's `pedantic`
+* **The Rust API Guidelines** and **Effective Rust.** clippy's `pedantic`
   set plus the configured lints in `Cargo.toml [lints]`, gated in CI,
-  warnings as errors,
-* **The Rustonomicon** (the semantics `unsafe` code must uphold) —
-  `unsafe_code = "forbid"` at the compiler level, and the **Miri** gate
-  interpreting the test suite on every PR for the day that changes,
-* **The RustSec Advisory Database** and **OpenSSF supply-chain
-  guidance** — the `cargo-deny` gate (advisories, licenses, bans,
-  sources), `--locked` builds, SHA-pinned actions, digest-pinned base
-  images and Scorecard,
-* **ANSSI's Secure Rust Guidelines** — overflow checks in release,
-  `unwrap_used` linted in library code, errors returned instead of
-  panicking on untrusted input,
-* **size budgets** — the stripped release binary against a committed
-  byte budget ([size-budget.txt](size-budget.txt)), the sibling of the web
-  template's bundle budget; unlike timings, bytes are deterministic on
-  shared runners, so this one is a real gate, and its canary proves it fails,
-* **fuzzing as standard practice** (cargo-fuzz/libFuzzer) — a harness CI
-  smoke-runs on every PR, ready for real parsers and input paths,
-* **API stability and test honesty as gates** — releases run
-  **cargo-semver-checks** against the previous tag (undeclared breaking API
-  changes fail the release), pull requests run **cargo-mutants** over the
-  diff (changed code nothing tests fails the PR), and release binaries are
-  built with **cargo-auditable** so `cargo audit bin` can scan shipped
+  warnings as errors.
+* **The Rustonomicon** (the semantics `unsafe` code must uphold).
+  `unsafe_code = "forbid"` at the compiler level, and the Miri gate
+  interpreting the test suite on every PR for the day that changes.
+* **The RustSec Advisory Database** and **OpenSSF supply-chain guidance.**
+  The `cargo-deny` gate (advisories, licenses, bans, sources), `--locked`
+  builds, SHA-pinned actions, digest-pinned base images and Scorecard.
+* **ANSSI's Secure Rust Guidelines.** Overflow checks in release,
+  `unwrap_used` linted in library code, errors returned instead of panicking
+  on untrusted input.
+* **Size budgets.** The stripped release binary against a committed byte
+  budget ([size-budget.txt](size-budget.txt)), the sibling of the web
+  template's bundle budget. Bytes are deterministic on shared runners, so
+  this one is a gate, and its canary proves it fails.
+* **Fuzzing as standard practice** (cargo-fuzz, libFuzzer). A harness CI
+  smoke-runs on every PR, ready for real parsers and input paths.
+* **API stability and test honesty as gates.** Releases run
+  cargo-semver-checks against the previous tag, so an undeclared breaking
+  API change fails the release. Pull requests run cargo-mutants over the
+  diff, so changed code nothing tests fails the PR. Release binaries are
+  built with cargo-auditable, so `cargo audit bin` can scan shipped
   artifacts for CVEs without their source.
 
-Not here on purpose: the web template's held-majors check, which catches a
-dependency major Dependabot stays silent about (an npm peer conflict, a
-NuGet framework floor). Cargo has no peer ranges and Dependabot does not
+The web template's held-majors check has no counterpart here. It catches a
+dependency major Dependabot stays silent about: an npm peer conflict or a
+NuGet framework floor. Cargo has no peer ranges and Dependabot does not
 consult `rust-version`, so a crate major it offers that needs a newer
-toolchain fails the pull request red rather than never arriving; the
+toolchain fails the pull request red rather than never arriving. The
 `--locked` builds and the MSRV check are where that lands.
 
-What a linter cannot check — naming things well, small functions, honest
-tests (*Code Complete*, *Clean Code*, *Refactoring*) — is what the mutation
-canary, the test-first workflow and code review are for.
+Naming, small functions and honest tests (*Code Complete*, *Clean Code*,
+*Refactoring*) are what the mutation canary, the test-first workflow and
+code review are for.
 
 ## After generating from this template
 
-One command finishes the setup — it
-renames the crate after your repository (the package name, both lockfiles,
-the fuzz crate, every `use` path and the README badge/links) and enables
-the repo-level GitHub settings templates cannot carry over (secret
+One command renames the crate after your repository (the package name, both
+lockfiles, the fuzz crate, every `use` path and the README badge and links)
+and enables the repository settings templates cannot carry over: secret
 scanning, push protection, private vulnerability reporting, Dependabot
-alerts + security updates, and branch protection requiring the sixteen CI
-checks):
+alerts and security updates, and branch protection requiring the seventeen
+CI checks.
 
 ```bash
 ./scripts/setup.sh
@@ -281,15 +275,13 @@ checks):
 It needs the [GitHub CLI](https://cli.github.com) authenticated as a repo
 admin, and it is safe to re-run.
 
-Optionally, add a `CODECOV_TOKEN` repository secret to feed the Codecov
-dashboard. The token is not required: the coverage gate itself is enforced
-by the verification suite and the CI job, and the upload step simply skips
-when the secret is absent — the coverage badge just reads "unknown" until
-the token is added.
+A `CODECOV_TOKEN` repository secret feeds the Codecov dashboard. The token
+is optional. The coverage gate is enforced by the verification suite and
+the CI job, the upload step skips when the secret is absent, and the
+coverage badge reads "unknown" until the token is added.
 
 ## License
 
-This project is licensed under the
-[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) — see the
-[LICENSE](LICENSE) file. Keep the [NOTICE](NOTICE) file's attribution with
-any copies.
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). See
+[LICENSE](LICENSE), and keep the [NOTICE](NOTICE) attribution with any
+copies.
