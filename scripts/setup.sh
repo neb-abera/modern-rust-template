@@ -13,7 +13,7 @@
 #      secret scanning, push protection, private vulnerability reporting,
 #      Dependabot alerts and security updates
 #   3. enables branch protection on the default branch requiring the
-#      sixteen CI checks — plus required commit signatures, when this
+#      seventeen CI checks — plus required commit signatures, when this
 #      machine is configured to sign
 #
 # Requirements: git, and the GitHub CLI (`gh`, https://cli.github.com)
@@ -117,7 +117,7 @@ gh api -X PATCH "repos/$owner_repo" -F delete_branch_on_merge=true > /dev/null
 done_ "merged PR branches are deleted automatically"
 
 #
-# 3. Branch protection requiring the sixteen CI checks
+# 3. Branch protection requiring the seventeen CI checks
 #
 # The list must match the PR-triggered job names in ci.yml and codeql.yml;
 # scripts/check-required-contexts.sh (a verify.sh gate) enforces the pairing.
@@ -133,7 +133,7 @@ gh api -X PUT "repos/$owner_repo/branches/$default_branch/protection" --input - 
       "fuzz smoke", "coverage", "toolchain pins",
       "dependency review",
       "mutation testing (cargo-mutants, diff only)",
-      "lint workflows and scripts",
+      "lint workflows and scripts", "prose",
       "analyze (rust)", "analyze (actions)"
     ]
   },
@@ -144,7 +144,7 @@ gh api -X PUT "repos/$owner_repo/branches/$default_branch/protection" --input - 
   "allow_deletions": false
 }
 JSON
-done_ "sixteen CI checks required, strict, enforced for admins"
+done_ "seventeen CI checks required, strict, enforced for admins"
 
 # Required commit signatures are a separate sub-resource of branch
 # protection with their own endpoint, not a field of the PUT above, so they
@@ -162,7 +162,7 @@ else
 fi
 
 printf '\n%sSetup complete.%s Every future change now goes through a PR gated on the
-sixteen CI checks. Verify the renamed project with: make verify-docker
+seventeen CI checks. Verify the renamed project with: make verify-docker
 
 Optional: add a CODECOV_TOKEN repository secret to feed the Codecov
 dashboard. The coverage gate itself runs in CI and needs no token.\n' "$BOLD" "$RESET"
