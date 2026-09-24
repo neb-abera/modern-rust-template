@@ -18,13 +18,28 @@ FROM rust:1.98.0-slim@sha256:17d1ba895198f9934c6314ec5346a0d5115372f3243390c3d73
 # derive the value from this line rather than repeating it.
 ENV NIGHTLY_TOOLCHAIN=nightly-2026-08-25
 
-# git for version control inside the container and g++ for libfuzzer-sys'
-# C++ runtime; the rest of the build essentials (gcc, libc headers) ship
-# with the base image.
+# The pinned Kani version, for the proof gate. Kani brings its own nightly
+# (it is a rustc driver), so this is a third toolchain in the image and
+# pinning it is what keeps a proof that passed today from silently becoming
+# a proof against a different compiler tomorrow. Scripts and CI derive the
+# value from this line rather than repeating it; scripts/check-toolchain.sh
+# fails if the line goes missing, so nobody ends up installing "latest".
+ENV KANI_VERSION=0.68.0
+
+# The pinned cargo-vet version. The audit format is versioned in
+# supply-chain/config.toml ([cargo-vet] version), so the tool and the files
+# have to agree; scripts/check-toolchain.sh fails if this line goes missing.
+ENV CARGO_VET_VERSION=0.10.2
+
+# git for version control inside the container, g++ for libfuzzer-sys' C++
+# runtime and curl for `cargo kani setup`, which shells out to it to fetch
+# the release bundle; the rest of the build essentials (gcc, libc headers)
+# ship with the base image.
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         git \
         g++ \
+        curl \
         ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
@@ -51,6 +66,16 @@ RUN rustup toolchain install "$NIGHTLY_TOOLCHAIN" --profile minimal \
 #   cargo-deny     — supply-chain gate: advisories, licenses, bans, sources
 #   cargo-llvm-cov — code coverage
 #   cargo-fuzz     — libFuzzer front end
+#   cargo-vet      — supply-chain gate: has anyone read this dependency
 RUN cargo install --locked cargo-binstall && \
-    cargo binstall -y cargo-deny cargo-llvm-cov cargo-fuzz && \
+    cargo binstall -y cargo-deny cargo-llvm-cov cargo-fuzz \
+        "cargo-vet@$CARGO_VET_VERSION" && \
+    rm -rf "$CARGO_HOME/registry" "$CARGO_HOME/git"
+
+# Kani, the bit-precise model checker used by the proof gate. `kani-verifier`
+# is only a shim; `cargo kani setup` then fetches the pinned release bundle
+# (the rustc driver, CBMC and the SAT/SMT solvers) into ~/.kani, so the first
+# `make kani` in a fresh container proves rather than downloads.
+RUN cargo install --locked "kani-verifier@$KANI_VERSION" && \
+    cargo kani setup && \
     rm -rf "$CARGO_HOME/registry" "$CARGO_HOME/git"
