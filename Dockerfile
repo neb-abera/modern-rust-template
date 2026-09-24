@@ -26,6 +26,11 @@ ENV NIGHTLY_TOOLCHAIN=nightly-2026-08-25
 # fails if the line goes missing, so nobody ends up installing "latest".
 ENV KANI_VERSION=0.68.0
 
+# The pinned cargo-vet version. The audit format is versioned in
+# supply-chain/config.toml ([cargo-vet] version), so the tool and the files
+# have to agree; scripts/check-toolchain.sh fails if this line goes missing.
+ENV CARGO_VET_VERSION=0.10.2
+
 # git for version control inside the container, g++ for libfuzzer-sys' C++
 # runtime and curl for `cargo kani setup`, which shells out to it to fetch
 # the release bundle; the rest of the build essentials (gcc, libc headers)
@@ -61,8 +66,10 @@ RUN rustup toolchain install "$NIGHTLY_TOOLCHAIN" --profile minimal \
 #   cargo-deny     — supply-chain gate: advisories, licenses, bans, sources
 #   cargo-llvm-cov — code coverage
 #   cargo-fuzz     — libFuzzer front end
+#   cargo-vet      — supply-chain gate: has anyone read this dependency
 RUN cargo install --locked cargo-binstall && \
-    cargo binstall -y cargo-deny cargo-llvm-cov cargo-fuzz && \
+    cargo binstall -y cargo-deny cargo-llvm-cov cargo-fuzz \
+        "cargo-vet@$CARGO_VET_VERSION" && \
     rm -rf "$CARGO_HOME/registry" "$CARGO_HOME/git"
 
 # Kani, the bit-precise model checker used by the proof gate. `kani-verifier`
