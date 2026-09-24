@@ -1,0 +1,13 @@
+# cargo-mutants configuration.
+#
+# The #[cfg(kani)] proof harnesses are excluded, and the reason is structural
+# rather than a convenience. cargo-mutants measures whether `cargo test` kills
+# a mutant. The proofs module is not compiled by `cargo test` at all: the
+# `kani` cfg is set by the Kani driver. So every mutant planted inside it is
+# MISSED by construction, and the eight it found were eight false reports
+# rather than eight gaps.
+#
+# The harnesses are not left unguarded. scripts/verify.sh's proof canary plants
+# a bug the unit tests cannot see and requires Kani to fail on it, which is the
+# same question mutation testing asks, put to the tool that actually runs them.
+exclude_re = ["proofs::"]
