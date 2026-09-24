@@ -269,6 +269,86 @@ jobs:
         RUSTFLAGS: ""
       run: cargo +"$NIGHTLY" miri test --locked
 
+  # Kani: the proof gate. Where the test suite samples inputs and Miri watches
+  # the sampled runs for undefined behaviour, Kani hands the #[kani::proof]
+  # harnesses in src/lib.rs to an SMT solver and settles them for every input.
+  # The canary step is the one that matters over time: a proof whose
+  # assumptions are too strong reports success while proving nothing, so a
+  # planted bug the unit tests cannot see must still make Kani fail.
+  kani:
+    name: kani
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      with:
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          ghcr.io:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+          pkg-containers.githubusercontent.com:443
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+    # The version comes from the Dockerfile, the single place it is written
+    # down, exactly as the miri job derives its nightly. `cargo kani setup`
+    # fetches the rustc driver, CBMC and the solvers for that release.
+    - name: install pinned Kani
+      run: |
+        KANI_VERSION=$(sed -n 's/^ENV KANI_VERSION=\(.*\)$/\1/p' Dockerfile)
+        cargo install --locked "kani-verifier@$KANI_VERSION"
+        cargo kani setup
+        echo "KANI_VERSION=$KANI_VERSION" >> "$GITHUB_ENV"
+
+    # RUSTFLAGS is cleared for the same reason as in the miri job: Kani
+    # carries its own sysroot and the flag forces a rebuild of it.
+    - name: prove the harnesses
+      env:
+        RUSTFLAGS: ""
+      run: cargo kani
+
+    # Plant a wrong answer at one arbitrary input the four unit tests never
+    # sample. The tests must still pass (that is what proof adds over tests)
+    # and Kani must fail (that is what makes the proofs load-bearing). Runs
+    # last so the mutated tree is never what an earlier step measured.
+    - name: prove the proof gate can fail (proof canary)
+      env:
+        RUSTFLAGS: ""
+      run: |
+        cp src/lib.rs /tmp/lib.rs.orig
+        perl -pi -e 's/^    lhs\.checked_add\(rhs\)$/    if lhs == 0x5EED_BEEF { None } else { lhs.checked_add(rhs) }/' src/lib.rs
+        if cmp -s src/lib.rs /tmp/lib.rs.orig; then
+          echo "::error::could not plant the canary bug; has src/lib.rs changed?"
+          exit 1
+        fi
+        if ! cargo test --release --locked --no-fail-fast; then
+          echo "::error::the unit tests caught the planted bug, so it does not demonstrate what proof adds"
+          cp /tmp/lib.rs.orig src/lib.rs
+          exit 1
+        fi
+        if cargo kani; then
+          echo "::error::Kani did NOT fail on the planted bug. The proofs are vacuous or not reached."
+          cp /tmp/lib.rs.orig src/lib.rs
+          exit 1
+        fi
+        cp /tmp/lib.rs.orig src/lib.rs
+        echo "the unit tests passed and Kani failed, as they should"
+
   # cargo-deny: the supply-chain gate — RustSec advisories, license
   # compliance, duplicate/banned crates and untrusted sources (deny.toml).
   cargo-deny:

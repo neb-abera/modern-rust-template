@@ -117,7 +117,7 @@ gh api -X PATCH "repos/$owner_repo" -F delete_branch_on_merge=true > /dev/null
 done_ "merged PR branches are deleted automatically"
 
 #
-# 3. Branch protection requiring the seventeen CI checks
+# 3. Branch protection requiring the eighteen CI checks
 #
 # The list must match the PR-triggered job names in ci.yml and codeql.yml;
 # scripts/check-required-contexts.sh (a verify.sh gate) enforces the pairing.
@@ -129,7 +129,7 @@ gh api -X PUT "repos/$owner_repo/branches/$default_branch/protection" --input - 
     "strict": true,
     "contexts": [
       "ubuntu-latest", "macos-latest", "windows-latest",
-      "clippy", "rustfmt", "docs", "miri", "cargo-deny",
+      "clippy", "rustfmt", "docs", "miri", "kani", "cargo-deny",
       "fuzz smoke", "coverage", "toolchain pins",
       "dependency review",
       "mutation testing (cargo-mutants, diff only)",
@@ -144,7 +144,7 @@ gh api -X PUT "repos/$owner_repo/branches/$default_branch/protection" --input - 
   "allow_deletions": false
 }
 JSON
-done_ "seventeen CI checks required, strict, enforced for admins"
+done_ "eighteen CI checks required, strict, enforced for admins"
 
 # Required commit signatures are a separate sub-resource of branch
 # protection with their own endpoint, not a field of the PUT above, so they

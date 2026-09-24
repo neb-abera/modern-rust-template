@@ -46,6 +46,11 @@ harness = false
 unsafe_code = "forbid"
 missing_docs = "warn"
 missing_debug_implementations = "warn"
+# `kani` is set by the Kani driver, not by cargo, so rustc does not know the
+# name and `-D warnings` would otherwise reject the #[cfg(kani)] proof module
+# in every ordinary build. Declaring it here keeps the lint on for every
+# other typo'd cfg.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 
 [lints.clippy]
 # The Rust API Guidelines and Effective Rust material, as a gate.
