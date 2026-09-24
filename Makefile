@@ -1,4 +1,4 @@
-.PHONY: test lint format docs coverage miri fuzz bench verify verify-docker shell install prose help
+.PHONY: test lint format docs coverage miri kani fuzz bench verify verify-docker shell install prose help
 .DEFAULT_GOAL := help
 
 define PRINT_HELP_PYSCRIPT
@@ -39,6 +39,11 @@ coverage: ## measure test coverage with cargo-llvm-cov
 
 miri: ## run the test suite under Miri (undefined-behavior detection)
 	cargo +$(NIGHTLY) miri test --locked
+
+# Kani is a rustc driver with its own sysroot, so RUSTFLAGS is cleared here
+# for the same reason it is for Miri.
+kani: ## prove the #[kani::proof] harnesses in src/lib.rs for every input
+	env -u RUSTFLAGS cargo kani
 
 # The fuzz target triple is passed explicitly: a prebuilt cargo-fuzz binary
 # otherwise defaults to the triple *it* was compiled for (often musl).
