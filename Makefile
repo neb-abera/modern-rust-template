@@ -1,4 +1,4 @@
-.PHONY: test lint format docs coverage miri fuzz bench verify verify-docker shell install prose help
+.PHONY: test lint format docs coverage miri kani vet vet-update fuzz bench verify verify-docker shell install prose help
 .DEFAULT_GOAL := help
 
 define PRINT_HELP_PYSCRIPT
@@ -39,6 +39,23 @@ coverage: ## measure test coverage with cargo-llvm-cov
 
 miri: ## run the test suite under Miri (undefined-behavior detection)
 	cargo +$(NIGHTLY) miri test --locked
+
+# Kani is a rustc driver with its own sysroot, so RUSTFLAGS is cleared here
+# for the same reason it is for Miri.
+kani: ## prove the #[kani::proof] harnesses in src/lib.rs for every input
+	env -u RUSTFLAGS cargo kani
+
+vet: ## cargo-vet: has anyone read this dependency? (reads imports.lock)
+	./scripts/check-vet.sh --self-test
+	./scripts/check-vet.sh
+
+# Fetches the four third-party audit files, rewrites imports.lock and drops
+# any exemption the refreshed imports now cover. Review the diff: it changes
+# what the gate accepts.
+vet-update: ## refresh supply-chain/imports.lock and prune covered exemptions
+	cargo vet regenerate imports
+	cargo vet prune
+	cargo vet
 
 # The fuzz target triple is passed explicitly: a prebuilt cargo-fuzz binary
 # otherwise defaults to the triple *it* was compiled for (often musl).

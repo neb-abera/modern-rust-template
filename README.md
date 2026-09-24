@@ -39,6 +39,29 @@ for performance, secure by design, the Rust sibling of
   request, flagging undefined behavior the moment any `unsafe` enters the
   project.
 
+* **Proofs.** The `#[kani::proof]` harnesses in
+  [`src/lib.rs`](src/lib.rs) are settled by
+  [Kani](https://github.com/model-checking/kani), a bit-precise model
+  checker, on every pull request. A test samples inputs. A proof covers all
+  of them: `add` is proved total, commutative, and equal to exact `i128`
+  arithmetic for every one of the 2^128 input pairs. Kani also proves the
+  absence of panics, arithmetic overflow and out-of-bounds indexing on every
+  path a harness reaches, which is why a harness with no assertion still
+  earns its place.
+
+  The gate ships with a canary, because the way verification fails is
+  silence: a harness whose `kani::assume` is too strong reports success and
+  proves nothing. So CI plants a wrong answer at one input the unit tests
+  never sample, then requires the tests to pass and Kani to fail. The first
+  half is the measurement of what proof adds over tests. The second is proof
+  that the proofs are load-bearing.
+
+  Kani ships its own rustc driver, so it is a third toolchain alongside the
+  pinned stable and the pinned nightly. Its version is pinned in the
+  Dockerfile (`KANI_VERSION`) and derived from there by the Makefile, the
+  verification suite and CI. `make verify` fails on a version mismatch: a
+  proof is only as good as the solver that checked it.
+
 * **Supply-chain gate.** [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)
   checks every pull request for RustSec advisories, license-allowlist
   violations, duplicate crates and sources other than crates.io
@@ -47,6 +70,19 @@ for performance, secure by design, the Rust sibling of
   advisories against the lockfile and the latest release binary
   (`cargo audit bin`, through the embedded cargo-auditable data) and fails
   when the pinned Miri and fuzzing nightly grows stale.
+
+* **Dependency audits.** [cargo-vet](https://github.com/mozilla/cargo-vet)
+  answers a question cargo-deny does not: has anyone read this dependency's
+  code. Audits are imported from Google, Mozilla, the Bytecode Alliance and
+  Zcash, which covers 17 of the 74 crates in the tree. The remaining 57 are
+  `[[exemptions]]` written by `cargo vet init`, the dependency set as it stood
+  when the gate landed. What the gate buys is the next dependency: a crate
+  that is neither exempted nor covered by an import fails, and the pull
+  request adding it has to say why it is trusted. CI runs `--locked` against
+  the committed `supply-chain/imports.lock`, so the gate never depends on four
+  third-party repositories being reachable. `make vet-update` refreshes the
+  lock and prunes exemptions the imports now cover. The gate self-tests first:
+  remove one exemption and `cargo vet` must fail.
 
 * **Fuzzing.** A [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz)
   (libFuzzer) harness in `fuzz/`, smoke-run in CI so it cannot rot, ready to
@@ -62,17 +98,18 @@ for performance, secure by design, the Rust sibling of
   and the CI job alike, and an optional Codecov dashboard upload when a
   `CODECOV_TOKEN` secret is present.
 
-* **One verification suite.** `make verify` runs sixteen checks with a
+* **One verification suite.** `make verify` runs nineteen checks with a
   pass/fail tally: the toolchain pins, the required-contexts list, the prose
   check, a release build and tests with warnings as errors, line coverage
-  against the floor, clippy, rustdoc, Miri, cargo-deny, a fuzz smoke run, an
-  executable smoke test, the release size budget and its canary, package
-  purity, the mutation canary and rustfmt. The list is at the top of
+  against the floor, clippy, rustdoc, Miri, the Kani proofs and the proof
+  canary, cargo-deny, cargo-vet, a fuzz smoke run, an executable smoke test,
+  the release size budget and its canary, package purity, the mutation canary
+  and rustfmt. The list is at the top of
   [scripts/verify.sh](scripts/verify.sh).
 
 * **CI for Linux, macOS and Windows** as one GitHub Actions matrix, with
-  clippy, rustfmt, docs, Miri, cargo-deny, fuzz smoke, coverage, prose and
-  toolchain-pin jobs alongside. A green run means the change built on all
+  clippy, rustfmt, docs, Miri, Kani, cargo-deny, cargo-vet, fuzz smoke,
+  coverage, prose and toolchain-pin jobs alongside. A green run means the change built on all
   three platforms and passed every gate. CodeQL scans the Rust sources and
   the workflows. OpenSSF Scorecard watches the supply-chain posture.
 
@@ -111,8 +148,8 @@ make shell          # toolchain shell: edit on the host, build in the container
 make verify-docker  # the full verification suite (what CI runs)
 ```
 
-`make help` lists the rest (`test`, `miri`, `fuzz`, `bench`, `docs`,
-`prose`).
+`make help` lists the rest (`test`, `miri`, `kani`, `vet`, `fuzz`, `bench`,
+`docs`, `prose`).
 
 ### Prerequisites
 
@@ -120,9 +157,9 @@ make verify-docker  # the full verification suite (what CI runs)
 * **git**
 
 Every tool the project needs is pinned in the [`Dockerfile`](Dockerfile):
-the stable Rust, the nightly with Miri, clippy, rustfmt, cargo-deny,
-cargo-llvm-cov and cargo-fuzz. Every developer and CI build with the same
-toolchain.
+the stable Rust, the nightly with Miri, the pinned Kani with its solvers,
+clippy, rustfmt, cargo-deny, cargo-llvm-cov and cargo-fuzz. Every developer
+and CI build with the same toolchain.
 
 Developing on the host instead needs [rustup](https://rustup.rs) alone. It
 reads `rust-toolchain.toml` and installs the pinned toolchain on first use.
@@ -185,10 +222,12 @@ the rustdoc comments):
 cargo test
 ```
 
-Under Miri, the fuzzer, or the benchmarks:
+Under Miri, the prover, the fuzzer, or the benchmarks:
 
 ```bash
 make miri      # undefined-behavior detection (pinned nightly, auto-derived)
+make kani      # prove the harnesses in src/lib.rs for every input
+make vet       # cargo-vet: has anyone read this dependency?
 make fuzz      # libFuzzer, 60 seconds of coverage-guided input
 make bench     # Criterion benchmarks, report in target/criterion/
 ```
