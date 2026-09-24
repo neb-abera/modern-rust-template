@@ -18,16 +18,23 @@
 #    6. clippy is clean (Rust API Guidelines material, pedantic set)
 #    7. rustdoc builds with no warnings (missing docs, broken links)
 #    8. the tests pass under Miri (undefined-behavior detection)
-#    9. cargo-deny: no security advisories, license or source violations
-#   10. fuzz smoke: the libFuzzer target builds and survives a short run
-#   11. executable mode builds and runs
-#   12. size budget: the stripped release binary fits the committed byte
+#    9. Kani proves the #[kani::proof] harnesses in src/lib.rs for every
+#       input, not the sampled inputs the tests cover
+#   10. proof canary: plant a bug the unit tests cannot see and confirm the
+#       tests pass while Kani fails, so the proofs are load-bearing rather
+#       than vacuous
+#   11. cargo-deny: no security advisories, license or source violations
+#   12. cargo-vet: every dependency is audited by someone, or explicitly
+#       exempted; and the gate proves it can fail
+#   13. fuzz smoke: the libFuzzer target builds and survives a short run
+#   14. executable mode builds and runs
+#   15. size budget: the stripped release binary fits the committed byte
 #       budget (size-budget.txt)
-#   13. size-budget canary: the size gate fails one byte over budget, and
+#   16. size-budget canary: the size gate fails one byte over budget, and
 #       on a missing artifact or budget
-#   14. the published package contains only this project's intended files
-#   15. mutation canary: plant a bug and confirm the tests catch it
-#   16. sources are rustfmt clean
+#   17. the published package contains only this project's intended files
+#   18. mutation canary: plant a bug and confirm the tests catch it
+#   19. sources are rustfmt clean
 #
 # Exit code 0 means everything passed.
 
@@ -42,6 +49,9 @@ PROJ=$(sed -n 's/^name = "\(.*\)"$/\1/p' Cargo.toml | head -1)
 # The pinned nightly (for Miri and fuzzing) is derived from the Dockerfile,
 # the single place it is written down.
 NIGHTLY=$(sed -n 's/^ENV NIGHTLY_TOOLCHAIN=\(.*\)$/\1/p' Dockerfile)
+
+# The pinned Kani version, derived from the same place for the same reason.
+KANI_VERSION=$(sed -n 's/^ENV KANI_VERSION=\(.*\)$/\1/p' Dockerfile)
 
 # The line-coverage floor, in percent, read from coverage-floor.txt: the one
 # place it is written down. CI's coverage job reads the same file, so the
@@ -58,7 +68,7 @@ else
   RED=""; GREEN=""; YELLOW=""; BOLD=""; RESET=""
 fi
 
-CHECKS_TOTAL=16
+CHECKS_TOTAL=19
 CHECKS_RUN=0
 CHECKS_PASSED=0
 CHECKS_FAILED=0
@@ -220,6 +230,73 @@ else
   fi
 fi
 
+banner "Proofs under Kani (bit-precise model checking, all inputs)"
+# RUSTFLAGS is cleared for Kani for the same reason as for Miri: Kani is a
+# rustc driver with its own sysroot, and the flag forces a rebuild of it.
+# Warnings-as-errors is already gated by the build and clippy checks.
+if ! command -v cargo-kani > /dev/null; then
+  skip "Kani (not installed; available in the Docker toolchain image)"
+# A proof is only as good as the solver that checked it, so the version is
+# part of the result. An unpinned Kani is a different prover than the one
+# this repository's proofs were verified against.
+elif installed_kani=$(cargo kani --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1) \
+     && [ "$installed_kani" != "$KANI_VERSION" ]; then
+  echo "installed Kani $installed_kani, Dockerfile pins $KANI_VERSION"
+  echo "install the pin with: cargo install --locked kani-verifier@$KANI_VERSION && cargo kani setup"
+  fail "Kani version drift (proofs must be checked by the pinned prover)"
+elif env -u RUSTFLAGS cargo kani > "$LOG" 2>&1; then
+  harnesses=$(grep -Eo '[0-9]+ successfully verified harnesses' "$LOG" | grep -Eo '^[0-9]+' | head -1)
+  checks=$(grep -Eo 'Complete - .*' "$LOG" | head -1)
+  echo "${checks:-proof summary unavailable}"
+  pass "Kani $KANI_VERSION: ${harnesses:-?} proof harnesses verified for every input"
+else
+  grep -E 'Status: FAILURE|Failed Checks|VERIFICATION' "$LOG" | head -20 || tail -20 "$LOG"
+  fail "Kani proofs"
+fi
+
+banner "Proof canary: are the proofs load-bearing, or vacuous?"
+# A proof whose assumptions are too strong proves nothing and still reports
+# success, which is the standard way verification goes wrong. So plant a bug
+# that the unit tests CANNOT see (a wrong answer at one arbitrary input they
+# never sample) and require two things: the tests still pass, and Kani fails.
+# The first half is the demonstration that proof buys something tests do not.
+# Backed up and restored by file copy, as the mutation canary is, so this
+# works in containers and source exports with no git metadata.
+if ! command -v cargo-kani > /dev/null; then
+  skip "Proof canary (Kani not installed)"
+else
+  PROOF_BACKUP="$(mktemp)"
+  cp src/lib.rs "$PROOF_BACKUP"
+  restore_proof_canary() { cp "$PROOF_BACKUP" src/lib.rs; rm -f "$PROOF_BACKUP"; }
+  perl -pi -e 's/^    lhs\.checked_add\(rhs\)$/    if lhs == 0x5EED_BEEF { None } else { lhs.checked_add(rhs) }/' src/lib.rs
+  cargo test --release --locked --no-fail-fast > "$LOG" 2>&1
+  # A canary must tell three outcomes apart, and the exit code alone cannot:
+  # a compile error and a failing test both exit non-zero. Counting the
+  # reported test results distinguishes them, so a mutation that does not
+  # build can never be mistaken for one the tests caught.
+  proof_ran=$(grep -cE '^test result:' "$LOG" || true)
+  proof_caught=$(grep -E '^test result:' "$LOG" | grep -Eo '[0-9]+ failed' | awk '{s+=$1} END {print s+0}')
+  if cmp -s src/lib.rs "$PROOF_BACKUP"; then
+    restore_proof_canary
+    skip "Proof canary (could not plant the bug; src/lib.rs changed?)"
+  elif [ "$proof_ran" -eq 0 ]; then
+    restore_proof_canary
+    tail -20 "$LOG"
+    fail "Proof canary (the planted bug did not compile, so nothing was measured)"
+  elif [ "$proof_caught" -ne 0 ]; then
+    restore_proof_canary
+    fail "Proof canary ($proof_caught unit tests caught the planted bug, so it does not demonstrate what proof adds; pick an input the tests do not sample)"
+  elif env -u RUSTFLAGS cargo kani > "$LOG" 2>&1; then
+    restore_proof_canary
+    fail "Proof canary (Kani did NOT fail on the planted bug! The proofs are vacuous or not reached.)"
+  else
+    failed=$(grep -c 'Status: FAILURE' "$LOG" || true)
+    restore_proof_canary
+    echo "planted a wrong answer at lhs == 0x5EED_BEEF: the unit tests passed, Kani reported $failed failing checks, then restored"
+    pass "Proof canary: tests missed the bug, Kani caught it"
+  fi
+fi
+
 banner "Supply chain: cargo-deny (advisories, licenses, bans, sources)"
 if ! command -v cargo-deny > /dev/null; then
   skip "cargo-deny (not installed; available in the Docker toolchain image)"
@@ -228,6 +305,22 @@ elif cargo deny check > "$LOG" 2>&1; then
 else
   tail -30 "$LOG"
   fail "Supply chain (cargo-deny)"
+fi
+
+banner "Supply chain: cargo-vet (has anyone read this dependency?)"
+# cargo-deny above judges advisories, licences and sources. This judges
+# whether the code was read. The self-test runs first: a config that accepted
+# everything would report success forever, so the gate proves it can fail
+# before its result is believed.
+if ! command -v cargo-vet > /dev/null; then
+  skip "cargo-vet (not installed; available in the Docker toolchain image)"
+elif ./scripts/check-vet.sh --self-test > "$LOG" 2>&1 \
+     && ./scripts/check-vet.sh >> "$LOG" 2>&1; then
+  grep -E '^self-test|Vetting Succeeded' "$LOG" || true
+  pass "cargo-vet: every dependency accounted for, and the gate caught a removed exemption"
+else
+  tail -25 "$LOG"
+  fail "cargo-vet (an unaudited dependency, or a broken self-test)"
 fi
 
 banner "Fuzz smoke: libFuzzer target builds and survives a short run"
@@ -290,7 +383,7 @@ if cargo package --list --allow-dirty --locked > "$LOG" 2>&1; then
 fi
 if [ -n "$PKG_LIST" ] \
    && printf '%s\n' "$PKG_LIST" | grep -q '^src/lib.rs$' \
-   && ! printf '%s\n' "$PKG_LIST" | grep -Eq '^(Dockerfile|Makefile|fuzz/|\.github/|scripts/|deny\.toml|rust-toolchain\.toml)' \
+   && ! printf '%s\n' "$PKG_LIST" | grep -Eq '^(Dockerfile|Makefile|fuzz/|proof/|supply-chain/|\.github/|scripts/|deny\.toml|rust-toolchain\.toml)' \
    && cargo package --allow-dirty --locked > "$LOG" 2>&1; then
   echo "packaged files:"; printf '%s\n' "$PKG_LIST" | sed 's/^/  /'
   pass "Package contains only this project's intended files and builds standalone"
@@ -307,11 +400,21 @@ cp src/lib.rs "$BACKUP"
 restore_canary() { cp "$BACKUP" src/lib.rs; rm -f "$BACKUP"; }
 perl -pi -e 's/checked_add/checked_sub/' src/lib.rs
 if ! cmp -s src/lib.rs "$BACKUP"; then
-  if cargo test --release --locked --no-fail-fast > "$LOG" 2>&1; then
+  cargo test --release --locked --no-fail-fast > "$LOG" 2>&1
+  # As in the proof canary: the exit code cannot tell a compile error from a
+  # failing test, and a mutation that does not build measures nothing. Count
+  # the reported results instead. Before this, a broken build passed this
+  # check with "0 tests failed as they should".
+  ran=$(grep -cE '^test result:' "$LOG" || true)
+  caught=$(grep -E '^test result:' "$LOG" | grep -Eo '[0-9]+ failed' | awk '{s+=$1} END {print s+0}')
+  if [ "$ran" -eq 0 ]; then
+    restore_canary
+    tail -20 "$LOG"
+    fail "Mutation canary (the planted bug did not compile, so the tests were never run)"
+  elif [ "$caught" -eq 0 ]; then
     restore_canary
     fail "Mutation canary (tests did NOT catch the planted bug!)"
   else
-    caught=$(grep -E '^test result:' "$LOG" | grep -Eo '[0-9]+ failed' | awk '{s+=$1} END {print s+0}')
     restore_canary
     echo "planted 'checked_add -> checked_sub'; $caught tests failed as they should, then restored"
     pass "Mutation canary: tests caught the planted bug ($caught failures)"
