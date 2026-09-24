@@ -384,6 +384,53 @@ jobs:
   # libFuzzer smoke: the fuzz harness builds and survives a short
   # coverage-guided run. Real fuzzing campaigns run longer or continuously
   # (see the fuzz directory); this gate keeps the harness from rotting.
+  # cargo-vet: the other half of the supply-chain gate. cargo-deny judges
+  # advisories, licences and sources. This judges whether anyone read the
+  # code. --locked reads supply-chain/imports.lock rather than fetching four
+  # third-party audit URLs, so the gate is deterministic and a pull request
+  # does not depend on someone else's repository being reachable. The
+  # self-test runs first: a config that accepted everything would report
+  # success forever.
+  cargo-vet:
+    name: cargo-vet
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      with:
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+    # The version comes from the Dockerfile, the single place it is written
+    # down, as the miri and kani jobs derive theirs.
+    - name: install pinned cargo-vet
+      run: |
+        CARGO_VET_VERSION=$(sed -n 's/^ENV CARGO_VET_VERSION=\(.*\)$/\1/p' Dockerfile)
+        cargo install --locked "cargo-vet@$CARGO_VET_VERSION"
+
+    - name: prove the audit gate can fail
+      run: ./scripts/check-vet.sh --self-test
+
+    - name: every dependency is accounted for
+      run: ./scripts/check-vet.sh
+
   fuzz:
     name: fuzz smoke
     runs-on: ubuntu-latest
