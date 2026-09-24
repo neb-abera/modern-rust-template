@@ -74,7 +74,7 @@ for performance, secure by design, the Rust sibling of
 * **Dependency audits.** [cargo-vet](https://github.com/mozilla/cargo-vet)
   answers a question cargo-deny does not: has anyone read this dependency's
   code. Audits are imported from Google, Mozilla, the Bytecode Alliance and
-  Zcash, which covers 17 of the 74 crates in the tree; the remaining 57 are
+  Zcash, which covers 17 of the 74 crates in the tree. The remaining 57 are
   `[[exemptions]]` written by `cargo vet init`, the dependency set as it stood
   when the gate landed. What the gate buys is the next dependency: a crate
   that is neither exempted nor covered by an import fails, and the pull
