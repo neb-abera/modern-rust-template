@@ -24,15 +24,17 @@
 #       tests pass while Kani fails, so the proofs are load-bearing rather
 #       than vacuous
 #   11. cargo-deny: no security advisories, license or source violations
-#   12. fuzz smoke: the libFuzzer target builds and survives a short run
-#   13. executable mode builds and runs
-#   14. size budget: the stripped release binary fits the committed byte
+#   12. cargo-vet: every dependency is audited by someone, or explicitly
+#       exempted; and the gate proves it can fail
+#   13. fuzz smoke: the libFuzzer target builds and survives a short run
+#   14. executable mode builds and runs
+#   15. size budget: the stripped release binary fits the committed byte
 #       budget (size-budget.txt)
-#   15. size-budget canary: the size gate fails one byte over budget, and
+#   16. size-budget canary: the size gate fails one byte over budget, and
 #       on a missing artifact or budget
-#   16. the published package contains only this project's intended files
-#   17. mutation canary: plant a bug and confirm the tests catch it
-#   18. sources are rustfmt clean
+#   17. the published package contains only this project's intended files
+#   18. mutation canary: plant a bug and confirm the tests catch it
+#   19. sources are rustfmt clean
 #
 # Exit code 0 means everything passed.
 
@@ -66,7 +68,7 @@ else
   RED=""; GREEN=""; YELLOW=""; BOLD=""; RESET=""
 fi
 
-CHECKS_TOTAL=18
+CHECKS_TOTAL=19
 CHECKS_RUN=0
 CHECKS_PASSED=0
 CHECKS_FAILED=0
@@ -305,6 +307,22 @@ else
   fail "Supply chain (cargo-deny)"
 fi
 
+banner "Supply chain: cargo-vet (has anyone read this dependency?)"
+# cargo-deny above judges advisories, licences and sources. This judges
+# whether the code was read. The self-test runs first: a config that accepted
+# everything would report success forever, so the gate proves it can fail
+# before its result is believed.
+if ! command -v cargo-vet > /dev/null; then
+  skip "cargo-vet (not installed; available in the Docker toolchain image)"
+elif ./scripts/check-vet.sh --self-test > "$LOG" 2>&1 \
+     && ./scripts/check-vet.sh >> "$LOG" 2>&1; then
+  grep -E '^self-test|Vetting Succeeded' "$LOG" || true
+  pass "cargo-vet: every dependency accounted for, and the gate caught a removed exemption"
+else
+  tail -25 "$LOG"
+  fail "cargo-vet (an unaudited dependency, or a broken self-test)"
+fi
+
 banner "Fuzz smoke: libFuzzer target builds and survives a short run"
 if ! command -v cargo-fuzz > /dev/null; then
   skip "Fuzz smoke (cargo-fuzz not installed; available in the Docker toolchain image)"
@@ -365,7 +383,7 @@ if cargo package --list --allow-dirty --locked > "$LOG" 2>&1; then
 fi
 if [ -n "$PKG_LIST" ] \
    && printf '%s\n' "$PKG_LIST" | grep -q '^src/lib.rs$' \
-   && ! printf '%s\n' "$PKG_LIST" | grep -Eq '^(Dockerfile|Makefile|fuzz/|\.github/|scripts/|deny\.toml|rust-toolchain\.toml)' \
+   && ! printf '%s\n' "$PKG_LIST" | grep -Eq '^(Dockerfile|Makefile|fuzz/|proof/|supply-chain/|\.github/|scripts/|deny\.toml|rust-toolchain\.toml)' \
    && cargo package --allow-dirty --locked > "$LOG" 2>&1; then
   echo "packaged files:"; printf '%s\n' "$PKG_LIST" | sed 's/^/  /'
   pass "Package contains only this project's intended files and builds standalone"
