@@ -315,20 +315,21 @@ jobs:
         cargo kani setup
         echo "KANI_VERSION=$KANI_VERSION" >> "$GITHUB_ENV"
 
-    # RUSTFLAGS is cleared for the same reason as in the miri job: Kani
-    # carries its own sysroot and the flag forces a rebuild of it.
+    # RUSTFLAGS is UNSET, not set to the empty string. Kani passes it through
+    # to kani-compiler, where an empty value becomes an empty argument and
+    # rustc reports "multiple input filenames provided (first two filenames
+    # are `-` and ``)". The miri job tolerates `RUSTFLAGS: ""`; this one does
+    # not, so `env -u` is used here and in the Makefile alike. Clearing it at
+    # all is for the same reason as miri: Kani carries its own sysroot and the
+    # flag forces a rebuild of it.
     - name: prove the harnesses
-      env:
-        RUSTFLAGS: ""
-      run: cargo kani
+      run: env -u RUSTFLAGS cargo kani
 
     # Plant a wrong answer at one arbitrary input the four unit tests never
     # sample. The tests must still pass (that is what proof adds over tests)
     # and Kani must fail (that is what makes the proofs load-bearing). Runs
     # last so the mutated tree is never what an earlier step measured.
     - name: prove the proof gate can fail (proof canary)
-      env:
-        RUSTFLAGS: ""
       run: |
         cp src/lib.rs /tmp/lib.rs.orig
         perl -pi -e 's/^    lhs\.checked_add\(rhs\)$/    if lhs == 0x5EED_BEEF { None } else { lhs.checked_add(rhs) }/' src/lib.rs
@@ -341,7 +342,7 @@ jobs:
           cp /tmp/lib.rs.orig src/lib.rs
           exit 1
         fi
-        if cargo kani; then
+        if env -u RUSTFLAGS cargo kani; then
           echo "::error::Kani did NOT fail on the planted bug. The proofs are vacuous or not reached."
           cp /tmp/lib.rs.orig src/lib.rs
           exit 1
