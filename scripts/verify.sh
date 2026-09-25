@@ -4,37 +4,45 @@
 # running pass/fail count and a final summary. This mirrors what CI checks
 # before a merge:
 #
-#    1. the toolchain pins (rust-toolchain.toml / Dockerfile / Cargo.toml) agree
-#    2. setup.sh's required branch-protection contexts match the CI job names
-#    3. prose: every tracked Markdown file passes the writing rules in
-#       .vale/styles/Abera (the checker first proves every rule fires on a
-#       fixture and that clean prose passes; skipped if Docker is missing,
-#       as inside the toolchain container, where CI's prose job covers it)
-#    4. clean release build with warnings-as-errors + full test suite
-#       (unit, integration and documentation tests)
-#    5. line coverage: the same tests under cargo llvm-cov cover the crate
-#       at or above the floor in coverage-floor.txt (skipped if
-#       cargo-llvm-cov is missing)
-#    6. clippy is clean (Rust API Guidelines material, pedantic set)
-#    7. rustdoc builds with no warnings (missing docs, broken links)
-#    8. the tests pass under Miri (undefined-behavior detection)
-#    9. Kani proves the #[kani::proof] harnesses in src/lib.rs for every
-#       input, not the sampled inputs the tests cover
-#   10. proof canary: plant a bug the unit tests cannot see and confirm the
-#       tests pass while Kani fails, so the proofs are load-bearing rather
-#       than vacuous
-#   11. cargo-deny: no security advisories, license or source violations
-#   12. cargo-vet: every dependency is audited by someone, or explicitly
-#       exempted; and the gate proves it can fail
-#   13. fuzz smoke: the libFuzzer target builds and survives a short run
-#   14. executable mode builds and runs
-#   15. size budget: the stripped release binary fits the committed byte
-#       budget (size-budget.txt)
-#   16. size-budget canary: the size gate fails one byte over budget, and
-#       on a missing artifact or budget
-#   17. the published package contains only this project's intended files
-#   18. mutation canary: plant a bug and confirm the tests catch it
-#   19. sources are rustfmt clean
+#   - the toolchain pins (rust-toolchain.toml / Dockerfile / Cargo.toml) agree
+#   - .github/required-checks matches the pull-request job names (the
+#     checker first proves it catches a renamed check and an unlisted job)
+#   - template parity: every file .template-parity lists is byte-identical
+#     to modern-webapp-template's default branch (the checker first proves
+#     a drifted and a missing file are caught)
+#   - no workflow cancels a run on the default branch
+#   - no commit on this branch credits an AI (the checker proves it can fail)
+#   - prose: every tracked Markdown file passes the writing rules in
+#     .vale/styles/Abera (the checker first proves every rule fires on a
+#     fixture and that clean prose passes; skipped if Docker is missing,
+#     as inside the toolchain container, where CI's prose job covers it)
+#   - clean release build with warnings-as-errors + full test suite
+#     (unit, integration and documentation tests)
+#   - line coverage: the same tests under cargo llvm-cov cover the crate
+#     at or above the floor in coverage-floor.txt (skipped if
+#     cargo-llvm-cov is missing)
+#   - clippy is clean (Rust API Guidelines material, pedantic set)
+#   - rustdoc builds with no warnings (missing docs, broken links)
+#   - the tests pass under Miri (undefined-behavior detection)
+#   - Kani proves the #[kani::proof] harnesses in src/lib.rs for every
+#     input, not the sampled inputs the tests cover
+#   - proof canary: plant a bug the unit tests cannot see and confirm the
+#     tests pass while Kani fails, so the proofs are load-bearing rather
+#     than vacuous
+#   - cargo-deny: no security advisories, license or source violations
+#   - cargo-vet: every dependency is audited by someone, or explicitly
+#     exempted; and the gate proves it can fail
+#   - fuzz smoke: the libFuzzer target builds and survives a short run
+#   - executable mode builds and runs
+#   - benchmark smoke: every Criterion benchmark builds and runs once, with
+#     no timing read from it
+#   - size budget: the stripped release binary fits the committed byte
+#     budget (size-budget.txt)
+#   - size-budget canary: the size gate fails one byte over budget, and
+#     on a missing artifact or budget
+#   - the published package contains only this project's intended files
+#   - mutation canary: plant a bug and confirm the tests catch it
+#   - sources are rustfmt clean
 #
 # Exit code 0 means everything passed.
 
@@ -68,7 +76,9 @@ else
   RED=""; GREEN=""; YELLOW=""; BOLD=""; RESET=""
 fi
 
-CHECKS_TOTAL=20
+# One check per banner line below, counted rather than typed, so adding a
+# check cannot leave the total stale.
+CHECKS_TOTAL=$(grep -c '^banner "' scripts/verify.sh)
 CHECKS_RUN=0
 CHECKS_PASSED=0
 CHECKS_FAILED=0
@@ -127,11 +137,34 @@ else
   fail "Toolchain pin consistency"
 fi
 
-banner "Required-contexts drift: setup.sh vs the CI workflows"
-if ./scripts/check-required-contexts.sh; then
-  pass "setup.sh's branch-protection contexts match the PR-triggered CI job names"
+banner "Required checks: .github/required-checks vs the pull-request jobs"
+if ./scripts/check-required-contexts.sh --self-test > "$LOG" 2>&1 \
+   && ./scripts/check-required-contexts.sh >> "$LOG" 2>&1; then
+  grep -E '^self-test:|^required checks' "$LOG" || true
+  pass ".github/required-checks matches the pull-request job names"
 else
-  fail "Required-contexts drift"
+  tail -30 "$LOG"
+  fail "Required checks (the list and the jobs disagree, or a broken self-test)"
+fi
+
+banner "Template parity: files shared with modern-webapp-template are byte-identical to it"
+if ./scripts/check-template-parity.sh --self-test > "$LOG" 2>&1 \
+   && ./scripts/check-template-parity.sh >> "$LOG" 2>&1; then
+  grep -E '^self-test:' "$LOG" || true
+  pass "Shared files match the template, and the checker caught a planted drift"
+else
+  tail -30 "$LOG"
+  fail "Template parity (a shared file drifted from the template, or a broken self-test)"
+fi
+
+banner "Concurrency: no workflow cancels a run on the default branch"
+if ./scripts/check-concurrency.sh --self-test > "$LOG" 2>&1 \
+   && ./scripts/check-concurrency.sh >> "$LOG" 2>&1; then
+  cat "$LOG"
+  pass "No workflow cancels a push, schedule or merge-queue run"
+else
+  cat "$LOG"
+  fail "Concurrency (a workflow cancels runs outside a pull request, or a broken self-test)"
 fi
 
 banner "Attribution: no commit on this branch credits an AI"
@@ -365,6 +398,24 @@ if cargo build --release --locked > "$LOG" 2>&1 \
 else
   tail -20 "$LOG"
   fail "Executable mode"
+fi
+
+banner "Benchmark smoke: every Criterion benchmark builds and runs once"
+# Criterion's test mode (what `cargo test --benches` runs) executes each
+# benchmark once and prints `Success`. A build-and-run gate, never a timing
+# gate: nothing here reads a number. Zero `Success` lines means no
+# benchmark ran, which fails rather than passing empty.
+if cargo test --benches --release --locked > "$LOG" 2>&1; then
+  benches=$(grep -c '^Success' "$LOG" || true)
+  if [ "$benches" -gt 0 ]; then
+    pass "Benchmark smoke: $benches benchmarks ran once"
+  else
+    tail -20 "$LOG"
+    fail "Benchmark smoke (no benchmark ran)"
+  fi
+else
+  tail -20 "$LOG"
+  fail "Benchmark smoke (a benchmark does not build or panics)"
 fi
 
 # The release artifact the size checks measure: the binary cargo names after

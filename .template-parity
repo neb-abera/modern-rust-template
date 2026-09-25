@@ -1,12 +1,16 @@
 # Files this repository shares with modern-webapp-template and must keep
 # byte-identical to its default branch. A change to one of these lands in
-# the template first. The template's scripts/check-template-parity.sh reads
-# a list in this format and compares each path with the template on every
-# pull request. This repository does not run that check yet.
+# the template first. scripts/check-template-parity.sh fetches each from the
+# template and compares, in CI (the template parity job) and in make verify.
 #
 # Format: one path per line; the first line names the template.
 template: neb-abera/modern-webapp-template
+scripts/check-template-parity.sh
+scripts/check-required-contexts.sh
+scripts/check-attribution.sh
 scripts/check-prose.sh
+LICENSE
+.github/PULL_REQUEST_TEMPLATE.md
 .vale.ini
 .vale/fixtures/fails.md
 .vale/fixtures/passes.md
