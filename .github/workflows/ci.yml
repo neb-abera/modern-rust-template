@@ -747,6 +747,34 @@ jobs:
   # .vale/styles/Abera, the same check verify.sh runs, self-test first. On
   # the runner rather than in the toolchain container: the rules run in the
   # Vale image the Dockerfile pins, so the check needs Docker.
+  attribution:
+    name: attribution (no AI credit in commits)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      with:
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        # The check reads every commit this pull request would add, and a
+        # shallow clone has no merge base to measure that range from.
+        fetch-depth: 0
+        persist-credentials: false
+
+    - name: prove the check can fail
+      run: ./scripts/check-attribution.sh --self-test
+
+    - name: no commit in this pull request credits an AI
+      run: ./scripts/check-attribution.sh "origin/${GITHUB_BASE_REF}..HEAD"
+
   prose:
     name: prose
     runs-on: ubuntu-latest

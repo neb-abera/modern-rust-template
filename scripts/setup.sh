@@ -134,6 +134,7 @@ gh api -X PUT "repos/$owner_repo/branches/$default_branch/protection" --input - 
       "dependency review",
       "mutation testing (cargo-mutants, diff only)",
       "lint workflows and scripts", "prose",
+      "attribution (no AI credit in commits)",
       "analyze (rust)", "analyze (actions)"
     ]
   },
@@ -144,7 +145,7 @@ gh api -X PUT "repos/$owner_repo/branches/$default_branch/protection" --input - 
   "allow_deletions": false
 }
 JSON
-done_ "nineteen CI checks required, strict, enforced for admins"
+done_ "twenty CI checks required, strict, enforced for admins"
 
 # Required commit signatures are a separate sub-resource of branch
 # protection with their own endpoint, not a field of the PUT above, so they

@@ -68,7 +68,7 @@ else
   RED=""; GREEN=""; YELLOW=""; BOLD=""; RESET=""
 fi
 
-CHECKS_TOTAL=19
+CHECKS_TOTAL=20
 CHECKS_RUN=0
 CHECKS_PASSED=0
 CHECKS_FAILED=0
@@ -132,6 +132,21 @@ if ./scripts/check-required-contexts.sh; then
   pass "setup.sh's branch-protection contexts match the PR-triggered CI job names"
 else
   fail "Required-contexts drift"
+fi
+
+banner "Attribution: no commit on this branch credits an AI"
+# The commit-msg hook and the Claude PreToolUse gate both run on the machine
+# making the commit, so neither sees one made anywhere they are not installed.
+# This is the one that runs where the merge happens. The self-test first, as
+# everywhere else: it plants a trailer and a generated-with line in throwaway
+# repositories and requires both refused.
+if ./scripts/check-attribution.sh --self-test > "$LOG" 2>&1 \
+   && ./scripts/check-attribution.sh >> "$LOG" 2>&1; then
+  grep -E '^check-attribution|^attribution:' "$LOG" || true
+  pass "No commit on this branch credits an AI"
+else
+  tail -30 "$LOG"
+  fail "Attribution (a commit carries an AI credit, or a broken self-test)"
 fi
 
 banner "Prose: every tracked Markdown file passes the writing rules"
