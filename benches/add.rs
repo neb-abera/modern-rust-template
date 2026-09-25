@@ -1,7 +1,8 @@
-//! Criterion benchmark. `make bench` (or `cargo bench`) runs it and writes
-//! an HTML report under `target/criterion/`. Benchmarks are compiled by CI
-//! (so they cannot rot) but only run on demand — timing in shared CI
-//! runners is noise.
+//! Criterion benchmark. `make bench` (or `cargo bench`) measures it and
+//! writes an HTML report under `target/criterion/`. CI and `make verify`
+//! run it once in Criterion's test mode (`cargo test --benches`), which
+//! proves it builds and runs and measures nothing. Timing on shared CI
+//! runners is noise, so no gate reads a number from it.
 
 use std::hint::black_box;
 
