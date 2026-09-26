@@ -136,8 +136,8 @@ for performance, secure by design, the Rust sibling of
 
 * **Kept current by Dependabot** on every ecosystem (cargo, the fuzz crate,
   GitHub Actions, Docker), patch and minor grouped, with an auto-merge
-  workflow. Staying current costs no attention until a major lands or a
-  check goes red.
+  workflow. Every bump merges itself on green CI, majors included. A red
+  check is the only one that needs attention.
 
 * **Templates** for README, contributing guidelines, issues and pull
   requests, under the
