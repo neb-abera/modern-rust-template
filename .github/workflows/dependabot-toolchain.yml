@@ -41,7 +41,7 @@ concurrency:
 jobs:
   sync:
     name: sync toolchain pins
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     if: >-
       github.event.pull_request.user.login == 'dependabot[bot]'

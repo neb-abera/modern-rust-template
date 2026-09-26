@@ -29,7 +29,7 @@ permissions:
 jobs:
   image-scan:
     name: container scan (trivy)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     permissions:
       contents: read

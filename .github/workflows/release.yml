@@ -32,9 +32,9 @@ jobs:
       # needed for x86_64, and cargo-auditable works unmodified).
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-26.04
             label: Linux
-          - os: ubuntu-latest
+          - os: ubuntu-26.04
             label: Linux-musl
             target: x86_64-unknown-linux-musl
           - os: macos-latest
@@ -121,7 +121,7 @@ jobs:
   # tag and fails on undeclared breaking changes. Skips on the first release.
   semver:
     name: semver checks (API compatibility)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
     - name: harden runner
@@ -175,7 +175,7 @@ jobs:
         cargo semver-checks --baseline-rev "$prev"
 
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     needs: [build, semver]
     permissions:
