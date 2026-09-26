@@ -4,7 +4,8 @@
 # running pass/fail count and a final summary. This mirrors what CI checks
 # before a merge:
 #
-#   - the toolchain pins (rust-toolchain.toml / Dockerfile / Cargo.toml) agree
+#   - the toolchain pins (rust-toolchain.toml / Dockerfile / Cargo.toml) agree,
+#     and scripts/sync-toolchain.sh proves it moves them after a base image bump
 #   - .github/required-checks matches the pull-request job names (the
 #     checker first proves it catches a renamed check and an unlisted job)
 #   - template parity: every file .template-parity lists is byte-identical
@@ -131,7 +132,7 @@ count_cargo_test() {
 }
 
 banner "Toolchain pin consistency"
-if ./scripts/check-toolchain.sh; then
+if ./scripts/check-toolchain.sh && ./scripts/sync-toolchain.sh --self-test; then
   pass "rust-toolchain.toml, Dockerfile and Cargo.toml pin the same toolchain"
 else
   fail "Toolchain pin consistency"
