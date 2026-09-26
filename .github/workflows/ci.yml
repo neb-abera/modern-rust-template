@@ -830,6 +830,12 @@ jobs:
     - name: shellcheck over the scripts
       run: docker run --rm -v "$PWD":/repo -w /repo --entrypoint shellcheck lint-tools scripts/*.sh
 
+    # verify.sh skips a check whose prerequisite failed and names the
+    # failure. Its self-test runs it on copies of the tree with cargo and the
+    # other checkers stubbed, so it needs only the runner's shell tools.
+    - name: verify.sh self-test (a failed check stops the checks that need it)
+      run: ./scripts/verify.sh --self-test
+
   # Prose: every tracked Markdown file against the writing rules in
   # .vale/styles/Abera, the same check verify.sh runs, self-test first. On
   # the runner rather than in the toolchain container: the rules run in the
