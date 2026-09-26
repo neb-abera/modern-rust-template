@@ -1,0 +1,106 @@
+name: Dependabot toolchain pins
+# Moves rust-toolchain.toml and Cargo.toml's rust-version to the Rust version
+# of a Dependabot docker PR, and commits the result to the PR, so the toolchain
+# pins check passes and the update can auto-merge.
+#
+# Why it exists: the toolchain is pinned in three places (the Dockerfile's
+# FROM rust:<version>, rust-toolchain.toml and Cargo.toml's rust-version) and
+# scripts/check-toolchain.sh fails when they differ. Dependabot's docker
+# ecosystem bumps only the Dockerfile, so every Rust release arrived red and
+# sat open until somebody moved the other two by hand (the Rust template's
+# #28 and casefile #3, 2026-09-26).
+# Dependabot's rust-toolchain ecosystem, grouped with docker, could carry
+# rust-toolchain.toml in the same PR, but no ecosystem moves rust-version, so
+# a rewrite step is needed either way. One step for both files is less
+# machinery than a second ecosystem plus a group. This job is that step. scripts/sync-toolchain.sh does the rewrite and its
+# --self-test (CI's toolchain pins job) proves it.
+#
+# How: on Dependabot's own event, run the script on the PR branch, and if a
+# file moved, commit it to the PR branch through the GraphQL API with the
+# Dependabot auto-merge token, as the NuGet lock-file workflow in
+# modern-webapp-template does. Two things follow from committing that way
+# rather than with git push:
+#  - the commit is signed by GitHub, so a signature requirement is met, and
+#  - it is a PAT, not GITHUB_TOKEN, so the push fires the PR's checks again.
+#    A GITHUB_TOKEN push would leave the new head with no checks and
+#    auto-merge waiting forever.
+# The re-fired run has the PAT's owner as actor, not Dependabot, so the actor
+# gate below stops it from running this job again: no loop.
+#
+# Same namespace rule as the auto-merge workflow: the token must be stored
+# under Settings, Secrets and variables, Dependabot, or a Dependabot-triggered
+# run cannot see it.
+on: pull_request
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: sync toolchain pins
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]'
+      && github.actor == 'dependabot[bot]'
+      && startsWith(github.event.pull_request.head.ref, 'dependabot/docker/')
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+
+      - name: Checkout the PR branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: false
+
+      - name: Move the pins to the Dockerfile's Rust version
+        run: ./scripts/sync-toolchain.sh
+
+      - name: Commit the pins that moved, signed, through the API
+        env:
+          GH_TOKEN: ${{ secrets.DEPENDABOT_AUTOMERGE_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          changed="$(git status --porcelain -- rust-toolchain.toml Cargo.toml | awk '{print $2}')"
+          if [ -z "$changed" ]; then
+            echo "The pins already agree with the Dockerfile; nothing to commit."
+            exit 0
+          fi
+          echo "Files that moved:"
+          echo "$changed"
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::DEPENDABOT_AUTOMERGE_TOKEN is empty, so the moved pins cannot be committed. Store it as a Dependabot secret (Settings, Secrets and variables, Dependabot) with contents:write. An Actions secret of the same name is invisible to a Dependabot-triggered run."
+            exit 1
+          fi
+          additions="$(for f in $changed; do
+            jq -n --arg path "$f" --arg contents "$(base64 < "$f" | tr -d '\n')" '{path: $path, contents: $contents}'
+          done | jq -s .)"
+          jq -n \
+            --arg repo "$REPO" --arg branch "$BRANCH" --arg head "$HEAD_SHA" \
+            --argjson additions "$additions" \
+            '{
+              query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid url } } }",
+              variables: { input: {
+                branch: { repositoryNameWithOwner: $repo, branchName: $branch },
+                expectedHeadOid: $head,
+                message: {
+                  headline: "Move the toolchain pins to the base image Rust version",
+                  body: "Dependabot bumps only the Dockerfile, and scripts/check-toolchain.sh fails until rust-toolchain.toml and Cargo.toml agree with it. scripts/sync-toolchain.sh moved them."
+                },
+                fileChanges: { additions: $additions }
+              } }
+            }' > "$RUNNER_TEMP/commit.json"
+          gh api graphql --input "$RUNNER_TEMP/commit.json" --jq '.data.createCommitOnBranch.commit.url'
