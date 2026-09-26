@@ -9,10 +9,9 @@ on:
 permissions:
   contents: read
 
-# One release at a time, never cancelled mid-publish.
-concurrency:
-  group: release
-  cancel-in-progress: false
+# No concurrency group. A group holds one running and one pending run, and
+# a third run replaces the pending one, so a fixed group left the middle of
+# three tags pushed together with no release. Each tag runs on its own.
 
 defaults:
   run:

@@ -300,14 +300,14 @@ else
   fail "Template parity (a shared file drifted from the template, or a broken self-test)"
 fi
 
-banner "Concurrency: no workflow cancels a run on the default branch"
+banner "Concurrency: no workflow loses a run on the default branch"
 if ./scripts/check-concurrency.sh --self-test > "$LOG" 2>&1 \
    && ./scripts/check-concurrency.sh >> "$LOG" 2>&1; then
   cat "$LOG"
-  pass "No workflow cancels a push, schedule or merge-queue run"
+  pass "Every run outside a pull request has its own group or a fixed one that never cancels"
 else
   cat "$LOG"
-  fail "Concurrency (a workflow cancels runs outside a pull request, or a broken self-test)"
+  fail "Concurrency (a workflow can cancel or replace a run outside a pull request, or a broken self-test)"
 fi
 
 banner "Attribution: no commit on this branch credits an AI"
