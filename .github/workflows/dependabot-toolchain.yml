@@ -7,7 +7,8 @@ name: Dependabot toolchain pins
 # FROM rust:<version>, rust-toolchain.toml and Cargo.toml's rust-version) and
 # scripts/check-toolchain.sh fails when they differ. Dependabot's docker
 # ecosystem bumps only the Dockerfile, so every Rust release arrived red and
-# sat open until somebody moved the other two by hand (#28, 2026-09-26).
+# sat open until somebody moved the other two by hand (modern-rust-template
+# #28 and casefile #3, 2026-09-26).
 # Dependabot's rust-toolchain ecosystem, grouped with docker, could carry
 # rust-toolchain.toml in the same PR, but no ecosystem moves rust-version, so
 # a rewrite step is needed either way. One step for both files is less
