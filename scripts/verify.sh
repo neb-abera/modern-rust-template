@@ -45,11 +45,117 @@
 #   - mutation canary: plant a bug and confirm the tests catch it
 #   - sources are rustfmt clean
 #
+# A check that needs an earlier one is skipped when that one failed, and the
+# skip names it. The executable, the size budget and its canary need the
+# release build. The mutation canary needs it and green tests. The proof
+# canary needs green tests and green proofs. So the report leads with the
+# failure that caused the rest: a canary scored against a suite that already
+# fails would count those failures as a caught bug. The first check proves
+# it: scripts/verify.sh --self-test runs this script on copies of the tree
+# with cargo and the other checkers stubbed. A green copy must run the
+# mutation canary and pass. A copy that does not compile must report the
+# build as its one failure and run nothing that needs it. A copy whose tests
+# fail must not score the canary.
+#
 # Exit code 0 means everything passed.
 
 set -u
 
 cd "$(dirname "$0")/.." || exit 1
+
+# verify_self_test: run this script on stubbed copies of the tree (see the
+# header) and check what it ran and what it reported.
+verify_self_test() {
+  local dir bin failed=0 code out ran
+  dir="$(mktemp -d)"
+  # shellcheck disable=SC2064 # expand now: the directory name is fixed
+  trap "rm -rf '$dir'" EXIT
+  bin="$dir/bin"
+  mkdir -p "$bin"
+  # cargo: every call is logged. The build fails when STUB_BUILD=fail. The
+  # tests fail when STUB_TESTS=fail, and when the mutation canary's planted
+  # checked_sub is in the tree. The executable prints what the smoke test
+  # expects. Everything else succeeds.
+  cat > "$bin/cargo" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$STUB_LOG"
+args=" $* "
+proj=$(sed -n 's/^name = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+case "$1" in
+  build)
+    if [ "${STUB_BUILD:-}" = fail ]; then echo "error[E0308]: planted: mismatched types"; exit 101; fi
+    mkdir -p target/release
+    printf '#!/bin/sh\necho "1 + 2 = 3"\n' > "target/release/$proj"
+    chmod +x "target/release/$proj" ;;
+  test)
+    if [[ "$args" == *" --benches "* ]]; then echo "Success"; exit 0; fi
+    if [ "${STUB_TESTS:-}" = fail ] || grep -q checked_sub src/lib.rs; then
+      echo "test result: FAILED. 4 passed; 1 failed; 0 ignored"
+      exit 101
+    fi
+    echo "test result: ok. 5 passed; 0 failed; 0 ignored" ;;
+  package) [[ "$args" == *" --list "* ]] && printf 'Cargo.toml\nsrc/lib.rs\n' ;;
+esac
+exit 0
+STUB
+  chmod +x "$bin/cargo"
+
+  # run_copy <scenario> [VAR=value...]: verify.sh on a fresh copy of the
+  # tree, every other checker replaced by one that passes. PATH is the
+  # stub and the system directories, so the optional tools (cargo-llvm-cov,
+  # Kani, Miri, cargo-deny, cargo-vet, cargo-fuzz) are absent and skip.
+  # Sets code, out and ran (the cargo calls it made).
+  run_copy() {
+    local copy="$dir/$1" f
+    shift
+    mkdir -p "$copy"
+    tar --exclude=./target --exclude=./fuzz/target --exclude=./.git -cf - . | tar -xf - -C "$copy"
+    for f in "$copy"/scripts/*.sh; do
+      [ "$f" != "$copy/scripts/verify.sh" ] || continue
+      printf '#!/bin/sh\nexit 0\n' > "$f"
+    done
+    : > "$copy.cargo"
+    code=0
+    out="$(cd "$copy" && env -u GITHUB_STEP_SUMMARY PATH="$bin:/usr/bin:/bin" STUB_LOG="$copy.cargo" \
+      VERIFY_SELF_TEST_INNER=1 NO_COLOR=1 "$@" ./scripts/verify.sh 2>&1)" || code=$?
+    ran="$(cat "$copy.cargo")"
+  }
+  ok() { echo "self-test: ok: $1"; }
+  flunk() { echo "self-test FAILED: $1" >&2; printf '%s\n' "$out" | tail -30 | sed 's/^/    /' >&2; failed=1; }
+  check() { if "${@:2}"; then ok "$1"; else flunk "$1"; fi; }
+  # shellcheck disable=SC2329  # invoked through check()
+  absent() { ! grep -Eq -- "$1" <<< "$ran"; }
+  failures() { printf '%s\n' "$out" | awk '/^FAILURES:/ { f = 1; next } /^NOT RUN/ { f = 0 } f && sub(/^  - /, "")'; }
+
+  run_copy green
+  check "a tree whose checks all pass exits 0 (exit $code)" [ "$code" -eq 0 ]
+  check "and it ran the mutation canary" grep -q -- '--no-fail-fast' <<< "$ran"
+
+  run_copy nobuild STUB_BUILD=fail
+  check "a crate that does not compile fails the run (exit $code)" [ "$code" -eq 1 ]
+  check "the build is the one failure reported" [ "$(failures)" = "Release build (does not compile)" ]
+  check "the mutation canary never ran" absent '--no-fail-fast'
+  check "and it is reported as not run, naming the build" \
+    grep -q '^\[SKIP\] Mutation canary (not run: "Release build (does not compile)" failed first)' <<< "$out"
+  check "so is the executable" \
+    grep -q '^\[SKIP\] Executable mode (not run: "Release build (does not compile)" failed first)' <<< "$out"
+
+  run_copy notests STUB_TESTS=fail
+  check "failing tests fail the run (exit $code)" [ "$code" -eq 1 ]
+  check "they are the one failure reported" [ "$(failures)" = "Release tests" ]
+  check "and the mutation canary is not scored against them" absent '--no-fail-fast'
+  check "it says why" grep -q '^\[SKIP\] Mutation canary (not run: "Release tests" failed first)' <<< "$out"
+
+  if [ "$failed" -eq 0 ]; then
+    echo "self-test: a green tree ran every check, a build that did not compile stopped the checks that need it and was the one failure named, and failing tests kept the canary from running"
+  fi
+  return "$failed"
+}
+
+if [ "${1:-}" = --self-test ]; then
+  verify_self_test
+  exit $?
+fi
 
 # The crate name, read from Cargo.toml, so a rename (e.g. via
 # scripts/setup.sh) needs no edits here.
@@ -121,6 +227,29 @@ skip() {
   printf '%s[SKIP]%s %s\n' "$YELLOW" "$RESET" "$1"
 }
 
+# What a later check depends on, and the failed check that broke it: one
+# "<key><TAB><check name>" line per broken prerequisite (see the header).
+BROKEN=""
+broke() { BROKEN="$BROKEN$1"$'\t'"$2"$'\n'; }
+NOT_RUN=""
+# blocked <key> <check> <prerequisite key>...: when a prerequisite is
+# broken, skip <check> naming the failure behind it, mark <key> broken by
+# the same failure for the checks after, and succeed.
+blocked() {
+  local key="$1" what="$2" p cause
+  shift 2
+  for p; do
+    cause="$(printf '%s' "$BROKEN" | awk -F '\t' -v k="$p" '$1 == k { print $2; exit }')"
+    if [ -n "$cause" ]; then
+      broke "$key" "$cause"
+      NOT_RUN="$NOT_RUN  - $what\n"
+      skip "$what (not run: \"$cause\" failed first)"
+      return 0
+    fi
+  done
+  return 1
+}
+
 # Sum the "test result: ok. N passed; M failed; ..." lines from cargo test
 # output in $LOG into the running tally.
 count_cargo_test() {
@@ -130,6 +259,19 @@ count_cargo_test() {
   TESTS_PASSED=$((TESTS_PASSED + p))
   TESTS_FAILED=$((TESTS_FAILED + f))
 }
+
+banner "Verify itself: a failed check stops the checks that need it"
+# The stubbed copies run this script, so inside them the check is skipped
+# rather than run again.
+if [ -n "${VERIFY_SELF_TEST_INNER:-}" ]; then
+  skip "Verify itself (inside its own self-test)"
+elif ./scripts/verify.sh --self-test > "$LOG" 2>&1; then
+  grep -E '^self-test' "$LOG" || true
+  pass "A build that does not compile stops the checks that need it, and is the failure reported"
+else
+  cat "$LOG"
+  fail "Verify itself (the self-test: a check ran without its prerequisite, or the report named the wrong failure)"
+fi
 
 banner "Toolchain pin consistency"
 if ./scripts/check-toolchain.sh && ./scripts/sync-toolchain.sh --self-test; then
@@ -205,14 +347,17 @@ fi
 banner "Release build + full test suite (warnings as errors)"
 if ! cargo build --release --locked > "$LOG" 2>&1; then
   tail -20 "$LOG"
-  fail "Release build/tests"
+  broke build "Release build (does not compile)"
+  fail "Release build (does not compile)"
 else
   cargo test --release --locked 2>&1 | tee "$LOG"
   if grep -qE '^test result:' "$LOG" && ! grep -qE '^test result: FAILED' "$LOG" \
      && ! grep -q '^error' "$LOG"; then
     count_cargo_test; pass "Release: clean build, all tests green"
   else
-    count_cargo_test; fail "Release build/tests"
+    count_cargo_test
+    broke tests "Release tests"
+    fail "Release tests"
   fi
 fi
 
@@ -300,6 +445,7 @@ elif env -u RUSTFLAGS cargo kani > "$LOG" 2>&1; then
   pass "Kani $KANI_VERSION: ${harnesses:-?} proof harnesses verified for every input"
 else
   grep -E 'Status: FAILURE|Failed Checks|VERIFICATION' "$LOG" | head -20 || tail -20 "$LOG"
+  broke kani "Kani proofs"
   fail "Kani proofs"
 fi
 
@@ -313,6 +459,8 @@ banner "Proof canary: are the proofs load-bearing, or vacuous?"
 # works in containers and source exports with no git metadata.
 if ! command -v cargo-kani > /dev/null; then
   skip "Proof canary (Kani not installed)"
+elif blocked proof-canary "Proof canary" build tests kani; then
+  :
 else
   PROOF_BACKUP="$(mktemp)"
   cp src/lib.rs "$PROOF_BACKUP"
@@ -392,7 +540,9 @@ else
 fi
 
 banner "Executable mode smoke test"
-if cargo build --release --locked > "$LOG" 2>&1 \
+if blocked exe "Executable mode" build; then
+  :
+elif cargo build --release --locked > "$LOG" 2>&1 \
    && out=$(./target/release/"$PROJ") && [ "$out" = "1 + 2 = 3" ]; then
   echo "program output: $out"
   pass "Executable builds and prints the expected output"
@@ -426,6 +576,8 @@ ARTIFACT="target/release/$PROJ"
 banner "Size budget: stripped release binary vs size-budget.txt"
 if [ "$(uname -s)" != "Linux" ]; then
   skip "Size budget (the budget is set for the Linux toolchain container; use make verify-docker)"
+elif blocked size "Size budget" build; then
+  :
 elif ./scripts/check-size-budget.sh "$ARTIFACT" size-budget.txt > "$LOG" 2>&1; then
   cat "$LOG"
   pass "Size budget: the stripped release binary fits the committed budget"
@@ -435,7 +587,9 @@ else
 fi
 
 banner "Size-budget canary: does the size gate fail when it should?"
-if ./scripts/check-size-budget.sh --self-test "$ARTIFACT" > "$LOG" 2>&1; then
+if blocked size-canary "Size-budget canary" build; then
+  :
+elif ./scripts/check-size-budget.sh --self-test "$ARTIFACT" > "$LOG" 2>&1; then
   cat "$LOG"
   pass "Size-budget canary: one byte over, a missing artifact and a missing budget all fail"
 else
@@ -460,6 +614,9 @@ else
 fi
 
 banner "Mutation canary: do the tests catch a planted bug?"
+# Against a suite that already fails, any failure count would score as a
+# caught bug, so the canary needs a build and green tests.
+if ! blocked canary "Mutation canary" build tests; then
 # Back up and restore via a plain file copy, so this works in containers and
 # source exports where no git metadata is available.
 BACKUP="$(mktemp)"
@@ -489,6 +646,7 @@ if ! cmp -s src/lib.rs "$BACKUP"; then
 else
   restore_canary
   skip "Mutation canary (could not plant the mutation; src/lib.rs changed?)"
+fi
 fi
 
 banner "rustfmt check"
@@ -536,5 +694,9 @@ if [ "$CHECKS_FAILED" -eq 0 ]; then
 else
   printf '%s%sFAILURES:%s\n' "$BOLD" "$RED" "$RESET"
   printf '%b' "$FAILED_NAMES"
+  if [ -n "$NOT_RUN" ]; then
+    printf '%sNOT RUN, because a check they need failed:%s\n' "$YELLOW" "$RESET"
+    printf '%b' "$NOT_RUN"
+  fi
   exit 1
 fi
