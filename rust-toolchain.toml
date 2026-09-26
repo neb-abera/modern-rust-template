@@ -2,7 +2,8 @@
 # rustup reads this file automatically, so `cargo build` on any machine uses
 # the same compiler. The Dockerfile base image and Cargo.toml's rust-version
 # must match this channel; scripts/check-toolchain.sh (run by verify.sh and
-# CI) enforces the pairing.
+# CI) enforces the pairing. On a Dependabot base image bump the Dependabot
+# toolchain pins workflow rewrites this file with scripts/sync-toolchain.sh.
 #
 # The pinned nightly used for Miri and fuzzing lives in the Dockerfile
 # (NIGHTLY_TOOLCHAIN) — this file can only pin one toolchain.
