@@ -451,53 +451,54 @@ jobs:
     - name: every dependency is accounted for
       run: ./scripts/check-vet.sh
 
+  # In the toolchain image: libfuzzer-sys compiles libFuzzer's C++, and
+  # the image's GCC is the one that gates. The runner's is Ubuntu's.
   fuzz:
     name: fuzz smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
     - name: harden runner
       uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
-        egress-policy: block
-        allowed-endpoints: >
-          github.com:443
-          api.github.com:443
-          codeload.github.com:443
-          raw.githubusercontent.com:443
-          uploads.github.com:443
-          static.crates.io:443
-          index.crates.io:443
-          crates.io:443
-          static.rust-lang.org:443
-          ghcr.io:443
-          objects.githubusercontent.com:443
-          release-assets.githubusercontent.com:443
-          pkg-containers.githubusercontent.com:443
+        # Audit, not block: this job builds and runs a container, and
+        # container-side DNS bypasses harden-runner's resolver, so blocked
+        # lookups surface as refused raw-IP dials. Host-process jobs stay on
+        # block.
+        egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
 
-    - name: install pinned nightly
-      run: |
-        NIGHTLY=$(sed -n 's/^ENV NIGHTLY_TOOLCHAIN=\(.*\)$/\1/p' Dockerfile)
-        rustup toolchain install "$NIGHTLY" --profile minimal
-        echo "NIGHTLY=$NIGHTLY" >> "$GITHUB_ENV"
+    # BuildKit's GitHub Actions layer cache: only the first run after a
+    # Dockerfile change pays the full build.
+    - name: set up Docker Buildx
+      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-    - name: install cargo-fuzz
-      uses: taiki-e/install-action@94c31af3204a9f15ab40b35ad084410b905bbc73 # v2.87.17
+    - name: build toolchain image
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
       with:
-        tool: cargo-fuzz
+        context: .
+        tags: toolchain
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
-    # The target triple is passed explicitly: the prebuilt cargo-fuzz
-    # binary otherwise defaults to the triple *it* was compiled for (musl),
-    # which has no std installed on the runner.
+    # Source mounted read-only and copied inside, so the checkout is never
+    # modified. The target triple is passed explicitly: the prebuilt
+    # cargo-fuzz binary otherwise defaults to the triple it was compiled
+    # for (musl), which has no std installed.
     - name: build and smoke-run the fuzz target
       run: |
-        cargo +"$NIGHTLY" fuzz run add \
-          --target "$(rustc +"$NIGHTLY" -vV | sed -n 's/^host: //p')" \
-          -- -max_total_time=15
+        docker run --rm -e RUSTFLAGS -v "$PWD":/src:ro toolchain bash -c '
+          set -euo pipefail
+          cp -r /src "$HOME/project" && cd "$HOME/project"
+          c++ --version | head -1
+          cargo +"$NIGHTLY_TOOLCHAIN" fuzz run add \
+            --target "$(rustc +"$NIGHTLY_TOOLCHAIN" -vV | sed -n "s/^host: //p")" \
+            -- -max_total_time=15
+        '
 
   coverage:
     name: coverage
