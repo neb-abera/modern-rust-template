@@ -14,10 +14,12 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same branch makes the running check obsolete.
+# A newer push to a pull request makes the running check obsolete. A newer
+# push to the default branch does not: cancelling it leaves a merge commit
+# with no checks (scripts/check-concurrency.sh enforces this).
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 defaults:
   run:
@@ -76,6 +78,20 @@ jobs:
 
     - name: run tests
       run: cargo test --release --locked 2>&1 | tee test-output.log
+
+    # Benchmark smoke: every Criterion benchmark runs once in test mode, so a
+    # harness that no longer builds or panics fails here. It measures
+    # nothing: timing on a shared runner is noise. Criterion prints
+    # `Success` per benchmark, and zero of them means nothing ran.
+    - name: benchmark smoke (build and run once, no timing)
+      run: |
+        cargo test --benches --release --locked 2>&1 | tee bench-output.log
+        ran=$(grep -c '^Success' bench-output.log || true)
+        if [ "$ran" -eq 0 ]; then
+          echo "::error::no benchmark ran"
+          exit 1
+        fi
+        echo "$ran benchmarks ran once"
 
     # Size budget, on the Linux leg only (the committed budget is set for
     # Linux x86-64): the same script verify.sh runs, against the release
@@ -562,7 +578,7 @@ jobs:
 
     - name: upload coverage to Codecov (dashboard only, needs CODECOV_TOKEN)
       if: env.CODECOV_TOKEN != ''
-      uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
+      uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
       with:
         files: lcov.info
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -599,6 +615,72 @@ jobs:
 
     - name: check the pins agree
       run: ./scripts/check-toolchain.sh
+
+  # setup.sh is the first thing an adopter runs, and nothing else exercises
+  # it. The self-test runs it against a copy named
+  # example-owner/Fake-Widget_2 with a stubbed GitHub CLI, fails on any
+  # template name left behind (NOTICE included) or a settings field dropped,
+  # proves its scan catches two planted leftovers, then builds and tests
+  # the renamed project.
+  setup-self-test:
+    name: setup self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      with:
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+          uploads.github.com:443
+          static.crates.io:443
+          index.crates.io:443
+          crates.io:443
+          static.rust-lang.org:443
+          objects.githubusercontent.com:443
+          release-assets.githubusercontent.com:443
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: install pinned toolchain
+      run: rustup toolchain install
+
+    - name: rename a copy, scan it, build and test it
+      run: ./scripts/setup.sh --self-test
+
+  # Files this repository shares with modern-webapp-template (listed in
+  # .template-parity) must stay byte-identical to the template's default
+  # branch. The self-test plants a drifted and a missing file first.
+  template-parity:
+    name: template parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - name: harden runner
+      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      with:
+        egress-policy: block
+        allowed-endpoints: >
+          github.com:443
+          api.github.com:443
+          codeload.github.com:443
+          raw.githubusercontent.com:443
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: prove the check can fail
+      run: ./scripts/check-template-parity.sh --self-test
+
+    - name: shared files match modern-webapp-template
+      run: ./scripts/check-template-parity.sh
 
   # Flags known-vulnerable dependencies introduced by a PR, from the diff of
   # the dependency graph (cargo, actions and docker ecosystems here).
@@ -706,9 +788,10 @@ jobs:
 
   # Lint the linters: actionlint validates the workflow files themselves and
   # shellcheck validates the repository's shell scripts, so a broken CI gate
-  # or verify script cannot merge quietly. actionlint is a pinned release
-  # binary verified by checksum; shellcheck is preinstalled on the runner
-  # image (actionlint also invokes it for run: blocks inside the workflows).
+  # or verify script cannot merge quietly. Both come from the digest-pinned
+  # `actionlint` stage of the Dockerfile (which carries the pinned
+  # shellcheck), the one place their versions are written and the place
+  # Dependabot bumps them.
   lint-workflows:
     name: lint workflows and scripts
     runs-on: ubuntu-latest
@@ -717,31 +800,29 @@ jobs:
     - name: harden runner
       uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
-        egress-policy: block
-        allowed-endpoints: >
-          github.com:443
-          api.github.com:443
-          codeload.github.com:443
-          raw.githubusercontent.com:443
-          objects.githubusercontent.com:443
-          release-assets.githubusercontent.com:443
+        # Audit, not block: this job builds and runs a container, and
+        # container-side DNS bypasses harden-runner's resolver, so blocked
+        # lookups surface as refused raw-IP dials. Host-process jobs stay on
+        # block.
+        egress-policy: audit
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
 
-    - name: install actionlint (pinned, checksum-verified)
-      run: |
-        curl -sSfL -o actionlint.tar.gz \
-          https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
-        echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint.tar.gz" | sha256sum -c -
-        tar -xzf actionlint.tar.gz actionlint
+    - name: build the pinned linters
+      run: docker build --target actionlint -t lint-tools .
 
-    - name: actionlint over the workflows
-      run: ./actionlint -color
+    - name: shellcheck and actionlint versions
+      run: |
+        docker run --rm --entrypoint shellcheck lint-tools --version
+        docker run --rm lint-tools -version
+
+    - name: actionlint over the workflows (embedded shell through the pinned shellcheck)
+      run: docker run --rm -v "$PWD":/repo -w /repo lint-tools -color -shellcheck /usr/local/bin/shellcheck
 
     - name: shellcheck over the scripts
-      run: shellcheck scripts/*.sh
+      run: docker run --rm -v "$PWD":/repo -w /repo --entrypoint shellcheck lint-tools scripts/*.sh
 
   # Prose: every tracked Markdown file against the writing rules in
   # .vale/styles/Abera, the same check verify.sh runs, self-test first. On

@@ -15,10 +15,11 @@ on:
 permissions:
   contents: read
 
-# A newer run makes the running one obsolete.
+# Scheduled and manual runs queue behind one another rather than cancel
+# (scripts/check-concurrency.sh enforces this for every workflow).
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 defaults:
   run:

@@ -1,4 +1,4 @@
-.PHONY: test lint format docs coverage miri kani vet vet-update fuzz bench verify verify-docker shell install prose help
+.PHONY: test lint format docs coverage miri kani vet vet-update fuzz bench verify verify-docker setup-self-test shell install prose help
 .DEFAULT_GOAL := help
 
 define PRINT_HELP_PYSCRIPT
@@ -15,6 +15,14 @@ export PRINT_HELP_PYSCRIPT
 # Docker image/container names derive from the checkout directory, so
 # projects generated from this template need no edits here.
 IMAGE := $(shell basename "$(CURDIR)" | tr '[:upper:]' '[:lower:]')
+# `make shell` runs as the user who owns the checkout. The image's own user
+# (uid 1000) can neither read a tree left at rw-rw---- by a umask of 007 nor
+# leave behind files the owner can delete. HOME points somewhere writable,
+# and KANI_HOME at the Kani bundle the image installed under that user.
+HOST_UID := $(shell id -u)
+HOST_GID := $(shell id -g)
+export HOST_UID
+export HOST_GID
 # The pinned nightly (Miri, fuzzing) is derived from the Dockerfile, the
 # single place it is written down.
 NIGHTLY := $(shell sed -n 's/^ENV NIGHTLY_TOOLCHAIN=\(.*\)$$/\1/p' Dockerfile)
@@ -71,10 +79,15 @@ verify: ## run the full verification suite with a pass/fail tally
 verify-docker: ## run the full verification suite inside the Docker toolchain image
 	./scripts/verify-docker.sh
 
+setup-self-test: ## run scripts/setup.sh on a copy under a fake name, then build and test it
+	./scripts/setup.sh --self-test
+
 shell: ## open a development shell inside the Docker toolchain image
 	docker build -t $(IMAGE):latest .
 	docker rm -f $(IMAGE)-dev 2>/dev/null || true
-	docker run --rm -it --name $(IMAGE)-dev -v $(CURDIR):/work -w /work $(IMAGE):latest bash
+	docker run --rm -it --name $(IMAGE)-dev --user $(HOST_UID):$(HOST_GID) \
+		-e HOME=/tmp -e KANI_HOME=/home/dev/.kani \
+		-v $(CURDIR):/work -w /work $(IMAGE):latest bash
 
 install: ## install the release binary into ~/.cargo/bin
 	cargo install --path . --locked

@@ -18,6 +18,8 @@ for performance, secure by design, the Rust sibling of
 * **Performance defaults.** Release builds use whole-program LTO and a
   single codegen unit. A Criterion benchmark harness (`benches/`,
   `make bench`) is wired in so performance work starts with measurements.
+  CI and the verification suite run each benchmark once in test mode, so
+  the harness cannot rot. No gate reads a timing.
 
 * **Secure by design.** `unsafe_code = "forbid"`, integer-overflow checks
   kept on in release builds, panicking `unwrap` linted against in library
@@ -98,20 +100,25 @@ for performance, secure by design, the Rust sibling of
   and the CI job alike, and an optional Codecov dashboard upload when a
   `CODECOV_TOKEN` secret is present.
 
-* **One verification suite.** `make verify` runs nineteen checks with a
-  pass/fail tally: the toolchain pins, the required-contexts list, the prose
-  check, a release build and tests with warnings as errors, line coverage
-  against the floor, clippy, rustdoc, Miri, the Kani proofs and the proof
-  canary, cargo-deny, cargo-vet, a fuzz smoke run, an executable smoke test,
-  the release size budget and its canary, package purity, the mutation canary
-  and rustfmt. The list is at the top of
+* **One verification suite.** `make verify` runs every check with a
+  pass/fail tally: the toolchain pins, the required-contexts list, workflow
+  concurrency, the attribution and prose checks, a release build and tests
+  with warnings as errors, line coverage against the floor, clippy, rustdoc,
+  Miri, the Kani proofs and the proof canary, cargo-deny, cargo-vet, a fuzz
+  smoke run, an executable smoke test, a benchmark smoke run, the release
+  size budget and its canary, package purity, the mutation canary and
+  rustfmt. The list is at the top of
   [scripts/verify.sh](scripts/verify.sh).
 
 * **CI for Linux, macOS and Windows** as one GitHub Actions matrix, with
   clippy, rustfmt, docs, Miri, Kani, cargo-deny, cargo-vet, fuzz smoke,
-  coverage, prose and toolchain-pin jobs alongside. A green run means the change built on all
-  three platforms and passed every gate. CodeQL scans the Rust sources and
-  the workflows. OpenSSF Scorecard watches the supply-chain posture.
+  coverage, prose, toolchain-pin, setup self-test and template parity jobs
+  alongside. Branch protection requires the checks in
+  `.github/required-checks`. A green
+  run means the change built on all three platforms and passed every gate.
+  CodeQL scans the Rust sources and the workflows. Trivy scans the toolchain
+  image for HIGH and CRITICAL CVEs on every pull request and weekly. OpenSSF
+  Scorecard watches the supply-chain posture.
 
 * **Releases from tags.** Pushing `v*` builds and tests on Linux, macOS and
   Windows, plus a static musl binary for scratch and distroless containers
@@ -124,7 +131,8 @@ for performance, secure by design, the Rust sibling of
   `make verify-docker` runs the full suite in it.
 
 * **Prose is linted.** `make prose` runs Vale with the rules in
-  `.vale/styles/Abera` over every Markdown file. Check 3 of the suite.
+  `.vale/styles/Abera` over every Markdown file, and the verification
+  suite runs the same check.
 
 * **Kept current by Dependabot** on every ecosystem (cargo, the fuzz crate,
   GitHub Actions, Docker), patch and minor grouped, with an auto-merge
@@ -177,7 +185,7 @@ fuzz/             cargo-fuzz (libFuzzer) harness, smoke-run in CI
 scripts/          verify.sh / verify-docker.sh / setup.sh and the check-*.sh gates
 .vale/            the writing rules (styles/Abera) and their self-test fixtures
 Dockerfile        the pinned toolchain image CI and `make shell` share, and the prose linter stage
-.github/          CI, CodeQL, Audit, Scorecard and Release workflows (SHA-pinned), Dependabot
+.github/          CI, CodeQL, Security scan, Audit, Scorecard and Release workflows (SHA-pinned), Dependabot
 ```
 
 ## Development workflow
@@ -301,11 +309,11 @@ code review are for.
 ## After generating from this template
 
 One command renames the crate after your repository (the package name, both
-lockfiles, the fuzz crate, every `use` path and the README badge and links)
-and enables the repository settings templates cannot carry over: secret
-scanning, push protection, private vulnerability reporting, Dependabot
-alerts and security updates, and branch protection requiring the seventeen
-CI checks.
+lockfiles, the fuzz crate, every `use` path, the README badge and links,
+and NOTICE) and enables the repository settings templates cannot carry
+over: secret scanning, push protection, private vulnerability reporting,
+Dependabot alerts and security updates, the Update branch button,
+auto-merge, and branch protection requiring every CI check.
 
 ```bash
 ./scripts/setup.sh
