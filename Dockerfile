@@ -3,6 +3,15 @@
 # script reads it from here rather than pinning a version of its own.
 FROM jdkato/vale:v3.22.0@sha256:0ef74c2c8331a2cc8739ecc8b4f7cc6672e61524c3697e8c8857bc86b724a28e AS vale
 
+# Workflow and script linters, for CI's lint job. As with Vale, the stages
+# exist so each tool is a digest-pinned FROM line Dependabot bumps, and CI
+# reads the pins from here rather than typing a version and checksum of its
+# own. The actionlint stage carries the pinned shellcheck, so the run:
+# blocks inside workflows and the scripts are checked by the same binary.
+FROM koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d AS shellcheck
+FROM rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 AS actionlint
+COPY --from=shellcheck /bin/shellcheck /usr/local/bin/shellcheck
+
 # Toolchain image: every compiler and tool the project uses, pinned, so
 # every developer and CI build with the same versions. `make shell` opens a
 # development shell in it; `make verify-docker` runs the full verification
@@ -45,8 +54,10 @@ RUN apt-get update && apt-get upgrade -y && \
 
 # Run as a non-root user. The base image leaves RUSTUP_HOME and CARGO_HOME
 # world-writable precisely so toolchains and tools can be managed without
-# root.
-RUN useradd --create-home --uid 1000 dev
+# root. `make shell` runs as the host user instead, whatever its uid, and
+# reads the Kani bundle under this home through KANI_HOME, so the home is
+# traversable (useradd makes it 0700).
+RUN useradd --create-home --uid 1000 dev && chmod 755 /home/dev
 USER dev
 WORKDIR /home/dev
 

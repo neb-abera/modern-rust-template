@@ -32,11 +32,12 @@ tested without scaffolding.
 ## The verify suite and required checks
 
 `./scripts/verify.sh` is the local mirror of CI: consistency checks on the
-toolchain pins and the required-contexts list, the prose check, build and
-tests with warnings as errors, line coverage against the floor in
-`coverage-floor.txt`, clippy, rustdoc, Miri, cargo-deny, a fuzz smoke run,
-the release size budget and its canary, package purity, the mutation canary
-and rustfmt. The prose check runs Vale through Docker, so inside the
+toolchain pins, the required-contexts list and workflow concurrency, the
+attribution and prose checks, build and tests with warnings as errors, line
+coverage against the floor in `coverage-floor.txt`, clippy, rustdoc, Miri,
+Kani, cargo-deny, cargo-vet, a fuzz smoke run, a benchmark smoke run, the
+release size budget and its canary, package purity, the mutation canary and
+rustfmt. The prose check runs Vale through Docker, so inside the
 container it skips. `make prose` runs it on the host, and CI's `prose` job
 runs it on every pull request.
 
@@ -46,11 +47,14 @@ them. `[skip ci]` in a commit message strands the PR with its required
 checks missing forever. If a check is wrong rather than your change, open
 an issue.
 
-Two of those checks guard the gates themselves. actionlint and shellcheck
-lint the workflows and scripts, and `scripts/check-required-contexts.sh`
-fails if a PR-gating job is added or renamed without updating the
-branch-protection list in `scripts/setup.sh`. If you add a CI job, update
-that list in the same PR.
+Some of those checks guard the gates themselves. actionlint and shellcheck
+lint the workflows and scripts. `scripts/check-required-contexts.sh` fails
+if a PR-gating job is added or renamed without updating
+`.github/required-checks`, the list `scripts/setup.sh` sends to branch
+protection. If you add a CI job, update that list in the same PR.
+`scripts/check-template-parity.sh` fails if a file listed in
+`.template-parity` differs from modern-webapp-template. Change those files
+there first.
 
 ## Raising the size budget
 

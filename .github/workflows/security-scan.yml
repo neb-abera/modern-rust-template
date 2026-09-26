@@ -1,0 +1,77 @@
+name: Security scan
+
+# Known CVEs inside the toolchain image every developer, `make verify-docker`
+# and `make shell` run (trivy). The weekly schedule matters as much as the
+# PR run: new CVEs are published against images that have not changed.
+on:
+  pull_request:
+  # Required checks must also run on queued merge groups if a merge queue is
+  # ever enabled (see ci.yml). Harmless while no queue exists.
+  merge_group:
+  push:
+    branches: [main, master]
+  schedule:
+    - cron: "15 7 * * 1"
+
+# A newer push to a pull request makes the running check obsolete. A newer
+# push to the default branch does not: cancelling it leaves a merge commit
+# with no checks (scripts/check-concurrency.sh enforces this).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  image-scan:
+    name: container scan (trivy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          # Audit, not block: this job builds/runs containers, and container-side
+          # DNS bypasses harden-runner's resolver, so blocked lookups surface as
+          # refused raw-IP dials. Host-process jobs stay on block.
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # This job never pushes; don't persist the token.
+          persist-credentials: false
+
+      - name: build the toolchain image
+        run: docker build -t scan-target .
+
+      # Unfixed findings are skipped. Triaged on 2026-09-26: the image carried
+      # 101 HIGH/CRITICAL findings, every one a Debian package with no fixed
+      # version (linux-libc-dev headers, util-linux, curl, expat, ncurses,
+      # perl, systemd, acl), none in a Rust tool. The Dockerfile already runs
+      # apt-get upgrade, so nothing in this repository can act on them. A
+      # finding with a fix fails the gate, and a base digest bump or a
+      # rebuild clears it. Accepted fixable findings would go in a
+      # .trivyignore with the reason for each.
+      - name: scan for HIGH/CRITICAL CVEs with a fix available
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          image-ref: scan-target
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: sarif
+          output: trivy.sarif
+          # SARIF output ignores the severity filter unless this is set,
+          # which makes exit-code fire on LOW/MEDIUM noise.
+          limit-severities-for-sarif: true
+          exit-code: "1"
+
+      - name: upload findings to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        with:
+          sarif_file: trivy.sarif
