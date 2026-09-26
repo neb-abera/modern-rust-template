@@ -20,7 +20,7 @@ COPY --from=shellcheck /bin/shellcheck /usr/local/bin/shellcheck
 # The base image tag must match the channel in rust-toolchain.toml and the
 # rust-version in Cargo.toml — scripts/check-toolchain.sh (a verify.sh and
 # CI gate) enforces the pairing, and Dependabot updates the digest.
-FROM rust:1.98.0-slim@sha256:17d1ba895198f9934c6314ec5346a0d5115372f3243390c3d731e242f35c2f27
+FROM rust:1.98.1-slim@sha256:f47a8de237dcbb0b0ce1099901e60a89728e3d51f24e664b40e947171538ade7
 
 # The pinned nightly toolchain, used only where stable cannot go: Miri
 # (undefined-behavior detection) and cargo-fuzz (libFuzzer). Scripts and CI
