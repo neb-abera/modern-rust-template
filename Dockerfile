@@ -12,6 +12,17 @@ FROM koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571
 FROM rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 AS actionlint
 COPY --from=shellcheck /bin/shellcheck /usr/local/bin/shellcheck
 
+# GCC, the newest release, for the C++ half of libfuzzer-sys. The base
+# image's Debian ships GCC 14. The Docker Official Image builds the GNU
+# release into /usr/local on the same Debian, and Dependabot bumps this line,
+# majors included. Go and Fortran, which it also builds, are dropped.
+FROM gcc:16.2.0@sha256:ef558a40d1f13115293feee01526dbdb9aaad7c9c5a00da05f471ce042e855c1 AS gcc
+RUN rm -rf /usr/local/bin/*go* /usr/local/bin/*gfortran* /usr/local/lib/go \
+        /usr/local/lib64/libgo* /usr/local/lib64/libgfortran* \
+        /usr/local/libexec/gcc/*/*/go1 /usr/local/libexec/gcc/*/*/f951 \
+        /usr/local/libexec/gcc/*/*/cgo /usr/local/libexec/gcc/*/*/vet \
+        /usr/local/libexec/gcc/*/*/buildid /usr/local/libexec/gcc/*/*/test2json
+
 # Toolchain image: every compiler and tool the project uses, pinned, so
 # every developer and CI build with the same versions. `make shell` opens a
 # development shell in it; `make verify-docker` runs the full verification
@@ -25,7 +36,7 @@ FROM rust:1.98.1-slim@sha256:f47a8de237dcbb0b0ce1099901e60a89728e3d51f24e664b40e
 # The pinned nightly toolchain, used only where stable cannot go: Miri
 # (undefined-behavior detection) and cargo-fuzz (libFuzzer). Scripts and CI
 # derive the value from this line rather than repeating it.
-ENV NIGHTLY_TOOLCHAIN=nightly-2026-08-25
+ENV NIGHTLY_TOOLCHAIN=nightly-2026-09-25
 
 # The pinned Kani version, for the proof gate. Kani brings its own nightly
 # (it is a rustc driver), so this is a third toolchain in the image and
@@ -40,17 +51,22 @@ ENV KANI_VERSION=0.68.0
 # have to agree; scripts/check-toolchain.sh fails if this line goes missing.
 ENV CARGO_VET_VERSION=0.10.2
 
-# git for version control inside the container, g++ for libfuzzer-sys' C++
-# runtime and curl for `cargo kani setup`, which shells out to it to fetch
-# the release bundle; the rest of the build essentials (gcc, libc headers)
-# ship with the base image.
+# git for version control inside the container and curl for `cargo kani
+# setup`, which shells out to it to fetch the release bundle. The base image
+# ships the libc headers and binutils GCC needs.
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         git \
-        g++ \
         curl \
         ca-certificates && \
     rm -rf /var/lib/apt/lists/*
+
+# GCC 16 in /usr/local, ahead of Debian's GCC 14 on PATH and in the loader
+# cache. cc and c++ name it too: rustc links through cc and the cc crate
+# compiles libfuzzer-sys through c++, so one GCC builds and links the C++.
+COPY --from=gcc /usr/local/ /usr/local/
+RUN ln -s gcc /usr/local/bin/cc && \
+    echo /usr/local/lib64 > /etc/ld.so.conf.d/000-gcc.conf && ldconfig
 
 # Run as a non-root user. The base image leaves RUSTUP_HOME and CARGO_HOME
 # world-writable precisely so toolchains and tools can be managed without

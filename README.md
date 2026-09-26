@@ -128,7 +128,8 @@ for performance, secure by design, the Rust sibling of
   GitHub Release with SLSA build provenance attestations and an SPDX SBOM.
 
 * **Docker-first.** A toolchain image pins the compiler (by digest), the
-  Miri and fuzzing nightly and every cargo tool the project uses.
+  Miri and fuzzing nightly, GCC 16 for libFuzzer's C++ and every cargo tool
+  the project uses.
   `make shell` opens a development shell in the container.
   `make verify-docker` runs the full suite in it.
 
