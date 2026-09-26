@@ -2,7 +2,7 @@
 # Docker base image current. Dependabot PRs update the pinned SHA/digest and
 # the version comment together, so supply-chain pinning and staying on the
 # latest versions are compatible. Patch and minor updates are grouped per
-# ecosystem into one PR; majors arrive alone and wait for a human. The
+# ecosystem into one PR; majors arrive alone and auto-merge on green CI. The
 # five-day cooldown holds brand-new releases back long enough for a
 # compromised or broken one to be yanked before it is ever proposed here.
 version: 2
