@@ -11,7 +11,7 @@
 workflow .github/workflows/ci.yml
 workflow .github/workflows/codeql.yml
 workflow .github/workflows/security-scan.yml
-check ubuntu-latest
+check ubuntu-26.04
 check macos-latest
 check windows-latest
 check clippy
