@@ -34,7 +34,7 @@ jobs:
   # subset of the cargo-deny gate CI runs on every PR, re-run on a clock.
   advisories:
     name: advisories (cargo-deny)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
     - name: harden runner
@@ -70,7 +70,7 @@ jobs:
   # the lockfile has since moved on.
   audit-release-binary:
     name: audit release binary
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
     - name: harden runner
@@ -142,7 +142,7 @@ jobs:
   # gets bumped by hand instead of rotting.
   nightly-pin-age:
     name: nightly pin age
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
     - name: harden runner

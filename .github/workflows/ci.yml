@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-26.04, macos-latest, windows-latest]
 
     steps:
     - name: harden runner (Linux)
@@ -135,7 +135,7 @@ jobs:
 
   clippy:
     name: clippy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
     - name: harden runner
@@ -171,7 +171,7 @@ jobs:
 
   rustfmt:
     name: rustfmt
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
     - name: harden runner
@@ -205,7 +205,7 @@ jobs:
 
   docs:
     name: docs
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
     - name: harden runner
@@ -246,7 +246,7 @@ jobs:
   # Dockerfile, the single place it is written down.
   miri:
     name: miri
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     steps:
     - name: harden runner
@@ -296,7 +296,7 @@ jobs:
   # planted bug the unit tests cannot see must still make Kani fail.
   kani:
     name: kani
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     steps:
     - name: harden runner
@@ -373,7 +373,7 @@ jobs:
   # compliance, duplicate/banned crates and untrusted sources (deny.toml).
   cargo-deny:
     name: cargo-deny
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
     - name: harden runner
@@ -413,7 +413,7 @@ jobs:
   # success forever.
   cargo-vet:
     name: cargo-vet
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
     - name: harden runner
@@ -455,7 +455,7 @@ jobs:
   # the image's GCC is the one that gates. The runner's is Ubuntu's.
   fuzz:
     name: fuzz smoke
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     steps:
     - name: harden runner
@@ -502,7 +502,7 @@ jobs:
 
   coverage:
     name: coverage
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     # The Codecov upload below is optional (dashboard only) and must not
     # fail the gate when the token is absent — a fresh repository generated
@@ -591,7 +591,7 @@ jobs:
   # must agree; the check is a script so verify.sh and CI share one engine.
   toolchain-pins:
     name: toolchain pins
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
     - name: harden runner
@@ -634,7 +634,7 @@ jobs:
   # the renamed project.
   setup-self-test:
     name: setup self-test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
     - name: harden runner
@@ -669,7 +669,7 @@ jobs:
   # branch. The self-test plants a drifted and a missing file first.
   template-parity:
     name: template parity
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
     - name: harden runner
@@ -697,7 +697,7 @@ jobs:
   dependency-review:
     name: dependency review
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
     - name: harden runner
@@ -733,7 +733,7 @@ jobs:
   mutants:
     name: mutation testing (cargo-mutants, diff only)
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     steps:
     - name: harden runner
@@ -804,7 +804,7 @@ jobs:
   # Dependabot bumps them.
   lint-workflows:
     name: lint workflows and scripts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
     - name: harden runner
@@ -847,7 +847,7 @@ jobs:
   attribution:
     name: attribution (no AI credit in commits)
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
     - name: harden runner
@@ -874,7 +874,7 @@ jobs:
 
   prose:
     name: prose
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
     - name: harden runner
