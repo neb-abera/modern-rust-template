@@ -24,7 +24,12 @@ docker build -t "$IMAGE" .
 echo
 echo "== Running verification in container $CONTAINER =="
 docker rm -f "$CONTAINER" 2> /dev/null || true
-docker run --rm --name "$CONTAINER" -v "$PWD":/src:ro "$IMAGE" bash -c '
+# GITHUB_REPOSITORY: check-template-parity.sh asks git for this repository's
+# name. In a worktree .git is a file naming a host path the container does
+# not have, so git fails there and the name is passed in from the host.
+REPO_SLUG=$(git remote get-url origin 2> /dev/null \
+  | sed -E 's#^(https://github\.com/|git@github\.com:)##; s#\.git$##' || true)
+docker run --rm --name "$CONTAINER" -v "$PWD":/src:ro -e GITHUB_REPOSITORY="$REPO_SLUG" "$IMAGE" bash -c '
   set -eu
   mkdir "$HOME/project"
   # Host build artifacts are excluded: they were produced by a different
