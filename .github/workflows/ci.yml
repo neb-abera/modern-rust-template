@@ -616,6 +616,12 @@ jobs:
     - name: check the pins agree
       run: ./scripts/check-toolchain.sh
 
+    # The rewrite the Dependabot toolchain workflow runs on a base image
+    # bump: a planted patch and minor bump fail the check above and pass
+    # after it.
+    - name: sync-toolchain self-test
+      run: ./scripts/sync-toolchain.sh --self-test
+
   # setup.sh is the first thing an adopter runs, and nothing else exercises
   # it. The self-test runs it against a copy named
   # example-owner/Fake-Widget_2 with a stubbed GitHub CLI, fails on any

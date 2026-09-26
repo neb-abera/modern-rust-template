@@ -13,7 +13,9 @@ for performance, secure by design, the Rust sibling of
 * **A pinned toolchain everywhere.** `rust-toolchain.toml` pins the stable
   compiler and rustup installs it on every machine and CI runner. The Docker
   toolchain image and the crate's declared MSRV are held in lockstep with it
-  by a CI gate (`scripts/check-toolchain.sh`).
+  by a CI gate (`scripts/check-toolchain.sh`). Dependabot bumps the
+  Dockerfile alone, so a workflow moves the other two pins on its pull
+  request (`scripts/sync-toolchain.sh`) and the bump merges on green CI.
 
 * **Performance defaults.** Release builds use whole-program LTO and a
   single codegen unit. A Criterion benchmark harness (`benches/`,
