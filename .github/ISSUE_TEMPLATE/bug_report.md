@@ -24,7 +24,7 @@ A clear and concise description of what you expected to happen.
 **Environment**
 
 * OS: [e.g. Ubuntu 24.04, macOS 15, Windows 11]
-* Project version or commit: [e.g. v1.2.0]
+* Project version or commit: [e.g. v0.2.0]
 
 **Additional context**
 Add any other context about the problem here.
