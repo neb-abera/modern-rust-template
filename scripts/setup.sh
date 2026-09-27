@@ -11,8 +11,8 @@
 #   1. renames the crate after your repository: the package name in
 #      Cargo.toml (and both lockfiles), the fuzz crate, every
 #      `use project::` path in sources, tests, benches and fuzz targets,
-#      the README/SECURITY.md badge and links, and NOTICE, then pushes the
-#      change
+#      the README/SECURITY.md badge and links, and NOTICE, starts the
+#      version at 0.1.0, then pushes the change
 #   2. enables the GitHub settings templates cannot carry over: secret
 #      scanning, push protection, private vulnerability reporting,
 #      Dependabot alerts and security updates, deleting merged branches,
@@ -126,6 +126,8 @@ STUB
   fi
   [ "$(head -1 "$work/NOTICE")" = "Fake-Widget_2" ] \
     || fail "NOTICE does not name the new project on its first line"
+  (cd "$work" && ./scripts/check-version.sh --tag v0.1.0 > /dev/null) \
+    || fail "the new project does not start at version 0.1.0"
   git -C "$tmp/remote.git" log -1 --format=%s main 2> /dev/null | grep -q '^Rename crate' \
     || fail "the rename commit was not pushed to the default branch"
 
@@ -213,6 +215,8 @@ else
   step "Renaming crate \"$TEMPLATE_CRATE\" to \"$name\""
 
   NEW=$name perl -pi -e 's/^name = "project"$/name = "$ENV{NEW}"/' Cargo.toml Cargo.lock fuzz/Cargo.lock
+  # A new project starts at 0.1.0, not at the template's own version.
+  NEW=$name perl -0pi -e 's/^(name = "\Q$ENV{NEW}\E"\nversion = )"[^"]*"/$1"0.1.0"/m' Cargo.toml Cargo.lock fuzz/Cargo.lock
   NEW=$name perl -pi -e 's/"project-fuzz"/"$ENV{NEW}-fuzz"/' fuzz/Cargo.toml fuzz/Cargo.lock
   # the fuzz lockfile also lists the parent crate as a dependency entry
   NEW=$name perl -pi -e 's/^ "project"(,?)$/ "$ENV{NEW}"$1/' fuzz/Cargo.lock

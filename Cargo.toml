@@ -2,7 +2,7 @@
 # it (and every `use project::` path) after your repository in one command.
 [package]
 name = "project"
-version = "0.1.0"
+version = "1.2.0"
 edition = "2024"
 # Minimum supported Rust version. Kept in lockstep with rust-toolchain.toml
 # and the Dockerfile base image by scripts/check-toolchain.sh (a verify.sh
