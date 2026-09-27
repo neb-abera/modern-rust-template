@@ -35,18 +35,17 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  build-linux:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-26.04, macos-latest, windows-latest]
+        os: [ubuntu-26.04]
 
     steps:
-    - name: harden runner (Linux)
-      if: runner.os == 'Linux'
+    - name: harden runner
       uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
         egress-policy: block
@@ -103,16 +102,80 @@ jobs:
     # is the gate's own canary: one byte over budget, a missing artifact
     # and a missing budget must each fail.
     - name: check the release binary size budget
-      if: runner.os == 'Linux'
       run: |
         proj=$(sed -n 's/^name = "\(.*\)"$/\1/p' Cargo.toml | head -1)
         ./scripts/check-size-budget.sh "target/release/$proj" size-budget.txt
 
     - name: prove the size gate can fail (size-budget canary)
-      if: runner.os == 'Linux'
       run: |
         proj=$(sed -n 's/^name = "\(.*\)"$/\1/p' Cargo.toml | head -1)
         ./scripts/check-size-budget.sh --self-test "target/release/$proj"
+
+    # Job summary: total tests passed/failed, parsed from the cargo test
+    # output captured above — the tests are not re-run. Guarded on the env
+    # var so the step is a no-op anywhere GITHUB_STEP_SUMMARY is absent.
+    - name: append test totals to the job summary
+      if: always()
+      env:
+        MATRIX_OS: ${{ matrix.os }}
+      run: |
+        [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f test-output.log ] || exit 0
+        passed=$(grep -E '^test result:' test-output.log | grep -Eo '[0-9]+ passed' | awk '{s+=$1} END {print s+0}' || true)
+        failed=$(grep -E '^test result:' test-output.log | grep -Eo '[0-9]+ failed' | awk '{s+=$1} END {print s+0}' || true)
+        {
+          echo "### Tests ($MATRIX_OS)"
+          echo ""
+          echo "| Passed | Failed |"
+          echo "| ---: | ---: |"
+          echo "| ${passed:-0} | ${failed:-0} |"
+        } >> "$GITHUB_STEP_SUMMARY"
+
+  # macOS and Windows run without harden-runner, as the C++ template's
+  # portability job does. harden-runner's pre step runs whatever the
+  # step's `if` says, so a Linux-only guard still installed its agent on
+  # these runners. There it runs in audit mode for public repositories only,
+  # and casefile, a private project made from this template, logged a failed
+  # agent install on every run.
+  build-other:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    # rustup reads rust-toolchain.toml, so the version is pinned in exactly
+    # one place and never hardcoded here.
+    - name: install pinned toolchain
+      run: rustup toolchain install
+
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+    - name: build
+      run: cargo build --release --locked
+
+    - name: run tests
+      run: cargo test --release --locked 2>&1 | tee test-output.log
+
+    # Benchmark smoke: every Criterion benchmark runs once in test mode, so a
+    # harness that no longer builds or panics fails here. It measures
+    # nothing: timing on a shared runner is noise. Criterion prints
+    # `Success` per benchmark, and zero of them means nothing ran.
+    - name: benchmark smoke (build and run once, no timing)
+      run: |
+        cargo test --benches --release --locked 2>&1 | tee bench-output.log
+        ran=$(grep -c '^Success' bench-output.log || true)
+        if [ "$ran" -eq 0 ]; then
+          echo "::error::no benchmark ran"
+          exit 1
+        fi
+        echo "$ran benchmarks ran once"
 
     # Job summary: total tests passed/failed, parsed from the cargo test
     # output captured above — the tests are not re-run. Guarded on the env
