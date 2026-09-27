@@ -300,6 +300,16 @@ else
   fail "Template parity (a shared file drifted from the template, or a broken self-test)"
 fi
 
+banner "Version: one version number, in Cargo.toml"
+if ./scripts/check-version.sh --self-test > "$LOG" 2>&1 \
+   && ./scripts/check-version.sh >> "$LOG" 2>&1; then
+  tail -1 "$LOG"
+  pass "Cargo.toml carries the only version, and the checker caught every planted mismatch"
+else
+  cat "$LOG"
+  fail "Version (a second manifest declares a version, or a broken self-test)"
+fi
+
 banner "Concurrency: no workflow loses a run on the default branch"
 if ./scripts/check-concurrency.sh --self-test > "$LOG" 2>&1 \
    && ./scripts/check-concurrency.sh >> "$LOG" 2>&1; then

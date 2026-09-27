@@ -25,3 +25,4 @@ LICENSE
 .vale/styles/Abera/Preamble.yml
 .vale/styles/Abera/Rhetorical.yml
 .vale/styles/Abera/Semicolon.yml
+scripts/check-version.sh
