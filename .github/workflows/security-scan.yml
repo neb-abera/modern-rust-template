@@ -52,6 +52,13 @@ jobs:
       - name: build the toolchain image
         run: docker build -t scan-target .
 
+      - name: read the scanner versions from the Dockerfile
+        id: pins
+        run: |
+          trivy=$(sed -nE 's/^FROM aquasec\/trivy:v?([^@]+)@.* AS trivy$/\1/p' Dockerfile)
+          if [ -z "$trivy" ]; then echo "no trivy FROM line in Dockerfile"; exit 1; fi
+          echo "trivy=v$trivy" >> "$GITHUB_OUTPUT"
+
       # Unfixed findings are skipped. Triaged on 2026-09-26: the image carried
       # 101 HIGH/CRITICAL findings, every one a Debian package with no fixed
       # version (linux-libc-dev headers, util-linux, curl, expat, ncurses,
@@ -63,6 +70,7 @@ jobs:
       - name: scan for HIGH/CRITICAL CVEs with a fix available
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
+          version: ${{ steps.pins.outputs.trivy }}
           image-ref: scan-target
           severity: HIGH,CRITICAL
           ignore-unfixed: true

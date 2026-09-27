@@ -216,6 +216,14 @@ jobs:
         path: artifacts
         merge-multiple: true
 
+    - name: read the scanner versions from the Dockerfile
+      id: pins
+      run: |
+        trivy=$(sed -nE 's/^FROM aquasec\/trivy:v?([^@]+)@.* AS trivy$/\1/p' Dockerfile)
+        syft=$(sed -nE 's/^FROM anchore\/syft:(v[^@]+)@.* AS syft$/\1/p' Dockerfile)
+        if [ -z "$trivy" ] || [ -z "$syft" ]; then echo "no trivy or syft FROM line in Dockerfile"; exit 1; fi
+        { echo "trivy=v$trivy"; echo "syft=$syft"; } >> "$GITHUB_OUTPUT"
+
     # SBOM for the release, generated from the committed lockfile — the
     # exact dependency resolution the binaries were built from (--locked) —
     # and attached to the GitHub Release so consumers can audit the
@@ -224,6 +232,7 @@ jobs:
     - name: generate SBOM
       uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
       with:
+        syft-version: ${{ steps.pins.outputs.syft }}
         file: Cargo.lock
         format: spdx-json
         output-file: sbom.spdx.json
