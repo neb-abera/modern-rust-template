@@ -86,7 +86,10 @@ for performance, secure by design, the Rust sibling of
   the committed `supply-chain/imports.lock`, so the gate never depends on four
   third-party repositories being reachable. `make vet-update` refreshes the
   lock and prunes exemptions the imports now cover. The gate self-tests first:
-  remove one exemption and `cargo vet` must fail.
+  remove one exemption and `cargo vet` must fail. On a Dependabot cargo pull
+  request, `scripts/sync-vet-exemptions.sh` moves the exemptions to the
+  updated versions and commits them, and refuses when the update adds a crate
+  name, so a new crate still needs a person.
 
 * **Fuzzing.** A [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz)
   (libFuzzer) harness in `fuzz/`, smoke-run in CI so it cannot rot, ready to
