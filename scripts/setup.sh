@@ -322,6 +322,18 @@ else
   warn "configure signing, then run: gh api -X POST repos/$owner_repo/branches/$default_branch/protection/required_signatures"
 fi
 
+#
+# 4. Let workflows open pull requests. The cargo-update workflow proposes the
+#    lock files' monthly refresh as a PR; without this repository setting
+#    its create-pull-request step fails. Default token permissions stay
+#    read-only: workflows that need more grant it per job.
+#
+
+gh api -X PUT "repos/$owner_repo/actions/permissions/workflow" \
+  -f default_workflow_permissions=read \
+  -F can_approve_pull_request_reviews=true > /dev/null
+done_ "workflows may open PRs (cargo-update); default token stays read-only"
+
 printf '\n%sSetup complete.%s Every future change now goes through a PR gated on
 the CI checks. Verify the renamed project with: make verify-docker
 

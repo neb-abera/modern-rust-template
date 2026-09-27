@@ -33,23 +33,23 @@ version = "1.5.1"
 criteria = "safe-to-run"
 
 [[exemptions.cc]]
-version = "1.4.4"
+version = "1.5.1"
 criteria = "safe-to-run"
 
 [[exemptions.cfg-if]]
-version = "1.0.4"
+version = "1.0.5"
 criteria = "safe-to-run"
 
 [[exemptions.clap]]
-version = "4.6.6"
+version = "4.6.7"
 criteria = "safe-to-run"
 
 [[exemptions.clap_builder]]
-version = "4.6.6"
+version = "4.6.7"
 criteria = "safe-to-run"
 
 [[exemptions.clap_lex]]
-version = "1.1.0"
+version = "1.1.1"
 criteria = "safe-to-run"
 
 [[exemptions.criterion]]
@@ -61,11 +61,15 @@ version = "0.8.2"
 criteria = "safe-to-run"
 
 [[exemptions.crossbeam-deque]]
-version = "0.8.7"
+version = "0.8.8"
+criteria = "safe-to-run"
+
+[[exemptions.crossbeam-epoch]]
+version = "0.9.21"
 criteria = "safe-to-run"
 
 [[exemptions.crossbeam-utils]]
-version = "0.8.22"
+version = "0.8.23"
 criteria = "safe-to-run"
 
 [[exemptions.either]]
@@ -73,7 +77,7 @@ version = "1.18.0"
 criteria = "safe-to-run"
 
 [[exemptions.find-msvc-tools]]
-version = "0.1.11"
+version = "0.1.14"
 criteria = "safe-to-run"
 
 [[exemptions.futures-core]]
@@ -101,7 +105,7 @@ version = "1.0.18"
 criteria = "safe-to-run"
 
 [[exemptions.js-sys]]
-version = "0.3.104"
+version = "0.3.106"
 criteria = "safe-to-run"
 
 [[exemptions.libc]]
@@ -189,11 +193,11 @@ version = "2.0.119"
 criteria = "safe-to-run"
 
 [[exemptions.syn]]
-version = "3.0.4"
+version = "3.0.6"
 criteria = "safe-to-run"
 
 [[exemptions.unicode-ident]]
-version = "1.0.24"
+version = "1.0.26"
 criteria = "safe-to-run"
 
 [[exemptions.walkdir]]
@@ -201,23 +205,23 @@ version = "2.5.0"
 criteria = "safe-to-run"
 
 [[exemptions.wasm-bindgen]]
-version = "0.2.127"
+version = "0.2.129"
 criteria = "safe-to-run"
 
 [[exemptions.wasm-bindgen-macro]]
-version = "0.2.127"
+version = "0.2.129"
 criteria = "safe-to-run"
 
 [[exemptions.wasm-bindgen-macro-support]]
-version = "0.2.127"
+version = "0.2.129"
 criteria = "safe-to-run"
 
 [[exemptions.wasm-bindgen-shared]]
-version = "0.2.127"
+version = "0.2.129"
 criteria = "safe-to-run"
 
 [[exemptions.web-sys]]
-version = "0.3.104"
+version = "0.3.106"
 criteria = "safe-to-run"
 
 [[exemptions.winapi-i686-pc-windows-gnu]]
@@ -233,11 +237,11 @@ version = "0.61.2"
 criteria = "safe-to-run"
 
 [[exemptions.zerocopy]]
-version = "0.8.56"
+version = "0.8.59"
 criteria = "safe-to-run"
 
 [[exemptions.zerocopy-derive]]
-version = "0.8.56"
+version = "0.8.59"
 criteria = "safe-to-run"
 
 [[exemptions.zmij]]
