@@ -60,8 +60,18 @@ jobs:
       with:
         persist-credentials: false
 
+    # cargo-deny resolves metadata with the Rust in its own image unless
+    # told otherwise. The pinned toolchain is the one the gates build with.
+    - name: read the pinned Rust from rust-toolchain.toml
+      id: toolchain
+      run: |
+        rust=$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml)
+        if [ -z "$rust" ]; then echo "no channel in rust-toolchain.toml"; exit 1; fi
+        echo "rust=$rust" >> "$GITHUB_OUTPUT"
+
     - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
       with:
+        rust-version: ${{ steps.toolchain.outputs.rust }}
         command: check advisories
 
   # `cargo audit bin` scans the latest shipped release binary for CVEs via

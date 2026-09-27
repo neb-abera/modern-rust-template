@@ -1,0 +1,93 @@
+# Opens a PR moving both lock files (Cargo.lock, fuzz/Cargo.lock) to the
+# newest versions every dependency's range allows, with the cargo-vet
+# exemptions regenerated to match. Dependabot's cargo ecosystem raises
+# direct dependencies only, so a transitive crate otherwise stays where it
+# was locked (cc, crossbeam and syn sat weeks behind in September 2026).
+# cargo update has no release-age cooldown the way Dependabot does. The PR
+# it opens goes through cargo-deny's advisory check and cargo-vet like any
+# other, and the exemptions that moved are in its diff.
+#
+# Runs monthly and does nothing when the lock files are current. It runs in
+# the toolchain image, so the lock files are resolved by the pinned stable
+# and nightly. Scheduled-only: this produces no PR-gating context, so it is
+# outside .github/required-checks and the drift guard's scope. PRs opened
+# with the default workflow token do not trigger CI. Close and reopen the
+# PR (or push an empty commit) to run the checks.
+name: cargo-update
+
+on:
+  schedule:
+    - cron: "0 6 3 * *"
+  workflow_dispatch:
+
+# Nothing at the workflow level: the write grants live on the one job that
+# needs them (Scorecard Token-Permissions).
+permissions: {}
+
+jobs:
+  update:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          # Audit, not block: this job builds and runs a container, and
+          # container-side DNS bypasses harden-runner's resolver.
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: build toolchain image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          tags: toolchain
+          load: true
+          cache-from: type=gha
+
+      - name: update the lock files and the cargo-vet exemptions
+        id: update
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp/home -e CARGO_HOME=/tmp/cargo \
+            -v "$PWD":/w -w /w toolchain bash -c '
+              set -euo pipefail
+              mkdir -p /tmp/home /tmp/cargo
+              cargo update 2>&1 | tee /tmp/stable.log
+              (cd fuzz && cargo +"$NIGHTLY_TOOLCHAIN" update) 2>&1 | tee /tmp/fuzz.log
+              cargo vet regenerate exemptions
+              cargo vet --locked
+              grep -h "Updating [a-z]" /tmp/stable.log /tmp/fuzz.log | sort -u > /w/.cargo-update-summary || true
+            '
+          if git diff --quiet -- Cargo.lock fuzz/Cargo.lock; then
+            echo "updates=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "updates=true" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo "Moves both lock files to the newest versions every range allows, and regenerates the cargo-vet exemptions to match:"
+            echo
+            sed 's/^ *Updating /- /' .cargo-update-summary
+          } > "$RUNNER_TEMP/cargo-update-summary.md"
+          rm -f .cargo-update-summary
+
+      - name: open the update PR
+        if: steps.update.outputs.updates == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          branch: chore/cargo-update
+          delete-branch: true
+          # Commit via GitHub's API so the commit is signed by GitHub itself;
+          # branches requiring Verified commits reject CLI-made bot commits.
+          sign-commits: true
+          commit-message: "Update the lock files to the newest compatible versions"
+          title: "Update the lock files to the newest compatible versions"
+          body-path: ${{ runner.temp }}/cargo-update-summary.md
