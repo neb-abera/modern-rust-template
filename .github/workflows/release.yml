@@ -222,6 +222,14 @@ jobs:
       with:
         tool: cargo-semver-checks
 
+    # A release tag is the version Cargo.toml declares
+    # (scripts/check-version.sh), and cargo-semver-checks judges the change
+    # by that number. A mismatch stops the release here.
+    - name: the tag matches Cargo.toml
+      env:
+        TAG: ${{ github.ref_name }}
+      run: ./scripts/check-version.sh --tag "$TAG"
+
     - name: check API compatibility against the previous release
       env:
         TAG: ${{ github.ref_name }}
