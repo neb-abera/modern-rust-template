@@ -18,7 +18,7 @@ defaults:
     shell: bash
 
 jobs:
-  build:
+  build-linux:
     name: ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -37,20 +37,13 @@ jobs:
           - os: ubuntu-26.04
             label: Linux-musl
             target: x86_64-unknown-linux-musl
-          - os: macos-latest
-            label: macOS
-          - os: windows-latest
-            label: Windows
 
     steps:
     # Audit mode, not block: this job's egress (rustup, crates.io, the
     # artifact upload endpoints) cannot be exercised without cutting a real
     # release, so a wrong allowlist would fail a release mid-tag. Audit
-    # still records every endpoint for review. harden-runner is Linux-only,
-    # so the macOS and Windows legs skip it — there is nothing to install
-    # there.
-    - name: harden runner (Linux)
-      if: runner.os == 'Linux'
+    # still records every endpoint for review.
+    - name: harden runner
       uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
       with:
         egress-policy: audit
@@ -100,6 +93,74 @@ jobs:
       run: |
         BIN=$(sed -n 's/^name = "\(.*\)"$/\1/p' Cargo.toml | head -1)
         OUT="target/${TARGET:+$TARGET/}release"
+        mkdir staging
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          cp "$OUT/$BIN.exe" LICENSE README.md staging/
+          7z a "$BIN-$LABEL-$TAG.zip" ./staging/*
+        else
+          cp "$OUT/$BIN" LICENSE README.md staging/
+          tar -czf "$BIN-$LABEL-$TAG.tar.gz" -C staging .
+        fi
+
+    - name: upload artifacts
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ matrix.label }}-${{ github.ref_name }}
+        path: |
+          *.tar.gz
+          *.zip
+
+  # macOS and Windows run without harden-runner, as the C++ template's
+  # portability job does. harden-runner's pre step runs whatever the
+  # step's `if` says, so a Linux-only guard still installed its agent on
+  # these runners. There it runs in audit mode for public repositories only,
+  # and casefile, a private project made from this template, logged a failed
+  # agent install on every run.
+  build-other:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      # label doubles as the artifact-name infix, as in build-linux.
+      matrix:
+        include:
+          - os: macos-latest
+            label: macOS
+          - os: windows-latest
+            label: Windows
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: install pinned toolchain
+      run: rustup toolchain install
+
+    - name: install cargo-auditable
+      uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # v2.87.21
+      with:
+        tool: cargo-auditable
+
+    # `cargo auditable` embeds the dependency list in the binary.
+    - name: build
+      run: cargo auditable build --release --locked
+
+    - name: run tests
+      run: cargo test --release --locked
+
+    # The crate (and so binary) name is read from Cargo.toml, so a rename
+    # via scripts/setup.sh needs no edits here. github.ref_name is passed
+    # through env rather than interpolated into the script: tag names may
+    # contain shell metacharacters.
+    - name: package
+      env:
+        TAG: ${{ github.ref_name }}
+        LABEL: ${{ matrix.label }}
+      run: |
+        BIN=$(sed -n 's/^name = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+        OUT="target/release"
         mkdir staging
         if [ "$RUNNER_OS" = "Windows" ]; then
           cp "$OUT/$BIN.exe" LICENSE README.md staging/
@@ -177,7 +238,7 @@ jobs:
   release:
     runs-on: ubuntu-26.04
     timeout-minutes: 15
-    needs: [build, semver]
+    needs: [build-linux, build-other, semver]
     permissions:
       contents: write
       id-token: write
