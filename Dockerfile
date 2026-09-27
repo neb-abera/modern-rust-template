@@ -1,7 +1,7 @@
 # Prose linter, for scripts/check-prose.sh. Never built into anything: the
 # stage exists so the image is a FROM line Dependabot sees and bumps, and the
 # script reads it from here rather than pinning a version of its own.
-FROM jdkato/vale:v3.22.0@sha256:0ef74c2c8331a2cc8739ecc8b4f7cc6672e61524c3697e8c8857bc86b724a28e AS vale
+FROM jdkato/vale:v3.23.0@sha256:d87d6355dc8992f92ec39c4c862a388e56e30302a771fd4512c02660fb25cdf3 AS vale
 
 # The scanners CI runs, for their versions only: trivy-action and
 # sbom-action take a version input, and these FROM lines are what
@@ -37,12 +37,12 @@ RUN rm -rf /usr/local/bin/*go* /usr/local/bin/*gfortran* /usr/local/lib/go \
 # The base image tag must match the channel in rust-toolchain.toml and the
 # rust-version in Cargo.toml — scripts/check-toolchain.sh (a verify.sh and
 # CI gate) enforces the pairing, and Dependabot updates the digest.
-FROM rust:1.98.1-slim@sha256:f47a8de237dcbb0b0ce1099901e60a89728e3d51f24e664b40e947171538ade7
+FROM rust:1.98.1-slim@sha256:4cd829461bd5c4d511c32e269da9cb8929223b666519d8004e35fc8d1d771ab7
 
 # The pinned nightly toolchain, used only where stable cannot go: Miri
 # (undefined-behavior detection) and cargo-fuzz (libFuzzer). Scripts and CI
 # derive the value from this line rather than repeating it.
-ENV NIGHTLY_TOOLCHAIN=nightly-2026-09-25
+ENV NIGHTLY_TOOLCHAIN=nightly-2026-09-27
 
 # The pinned Kani version, for the proof gate. Kani brings its own nightly
 # (it is a rustc driver), so this is a third toolchain in the image and
