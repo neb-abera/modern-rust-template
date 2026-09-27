@@ -522,6 +522,11 @@ jobs:
     - name: prove the audit gate can fail
       run: ./scripts/check-vet.sh --self-test
 
+    # The exemption sync the Dependabot toolchain workflow runs: a planted
+    # version-only bump must pass and a planted new crate must fail.
+    - name: prove the exemption sync refuses a new crate
+      run: ./scripts/sync-vet-exemptions.sh --self-test
+
     - name: every dependency is accounted for
       run: ./scripts/check-vet.sh
 

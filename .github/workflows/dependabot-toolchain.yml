@@ -30,6 +30,16 @@ name: Dependabot toolchain pins
 # Same namespace rule as the auto-merge workflow: the token must be stored
 # under Settings, Secrets and variables, Dependabot, or a Dependabot-triggered
 # run cannot see it.
+#
+# The sync-vet job does the same for cargo-vet on Dependabot's cargo pull
+# requests. A cargo update moves exempted crates to versions nobody
+# exempted, and scripts/check-vet.sh fails on each (the template's #40: 19
+# crates). scripts/sync-vet-exemptions.sh regenerates the exemptions and
+# keeps the result only when no crate name was added. A new crate, or a
+# crate an imported audit covered at its old version only, leaves the file
+# as it was and fails this job, and the cargo-vet check stays red until a
+# human audits or exempts it. Its --self-test (CI's cargo-vet job) plants
+# both cases.
 on: pull_request
 
 permissions: {}
@@ -99,6 +109,85 @@ jobs:
                 message: {
                   headline: "Move the toolchain pins to the base image Rust version",
                   body: "Dependabot bumps only the Dockerfile, and scripts/check-toolchain.sh fails until rust-toolchain.toml and Cargo.toml agree with it. scripts/sync-toolchain.sh moved them."
+                },
+                fileChanges: { additions: $additions }
+              } }
+            }' > "$RUNNER_TEMP/commit.json"
+          gh api graphql --input "$RUNNER_TEMP/commit.json" --jq '.data.createCommitOnBranch.commit.url'
+
+  sync-vet:
+    name: sync vet exemptions
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]'
+      && github.actor == 'dependabot[bot]'
+      && startsWith(github.event.pull_request.head.ref, 'dependabot/cargo/')
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            codeload.github.com:443
+            raw.githubusercontent.com:443
+            static.crates.io:443
+            index.crates.io:443
+            crates.io:443
+            static.rust-lang.org:443
+            objects.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+
+      - name: Checkout the PR branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: false
+
+      # The version comes from the Dockerfile, as in CI's cargo-vet job.
+      - name: Install the pinned cargo-vet
+        run: |
+          CARGO_VET_VERSION=$(sed -n 's/^ENV CARGO_VET_VERSION=\(.*\)$/\1/p' Dockerfile)
+          cargo install --locked "cargo-vet@$CARGO_VET_VERSION"
+
+      - name: Move the exemptions, refusing a new crate
+        run: ./scripts/sync-vet-exemptions.sh
+
+      - name: Commit the moved exemptions, signed, through the API
+        env:
+          GH_TOKEN: ${{ secrets.DEPENDABOT_AUTOMERGE_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          changed="$(git status --porcelain -- supply-chain | awk '{print $2}')"
+          if [ -z "$changed" ]; then
+            echo "The exemptions already match the lockfile; nothing to commit."
+            exit 0
+          fi
+          echo "Files that moved:"
+          echo "$changed"
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::DEPENDABOT_AUTOMERGE_TOKEN is empty, so the moved exemptions cannot be committed. Store it as a Dependabot secret (Settings, Secrets and variables, Dependabot) with contents:write. An Actions secret of the same name is invisible to a Dependabot-triggered run."
+            exit 1
+          fi
+          additions="$(for f in $changed; do
+            jq -n --arg path "$f" --arg contents "$(base64 < "$f" | tr -d '\n')" '{path: $path, contents: $contents}'
+          done | jq -s .)"
+          jq -n \
+            --arg repo "$REPO" --arg branch "$BRANCH" --arg head "$HEAD_SHA" \
+            --argjson additions "$additions" \
+            '{
+              query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid url } } }",
+              variables: { input: {
+                branch: { repositoryNameWithOwner: $repo, branchName: $branch },
+                expectedHeadOid: $head,
+                message: {
+                  headline: "Move the cargo-vet exemptions to the updated versions",
+                  body: "The update moved exempted crates to new versions and added none. scripts/sync-vet-exemptions.sh moved the exemptions with cargo vet regenerate exemptions."
                 },
                 fileChanges: { additions: $additions }
               } }
