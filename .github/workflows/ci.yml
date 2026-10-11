@@ -46,7 +46,7 @@ jobs:
 
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -202,7 +202,7 @@ jobs:
     timeout-minutes: 15
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -238,7 +238,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -272,7 +272,7 @@ jobs:
     timeout-minutes: 15
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -313,7 +313,7 @@ jobs:
     timeout-minutes: 45
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -363,7 +363,7 @@ jobs:
     timeout-minutes: 45
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -440,7 +440,7 @@ jobs:
     timeout-minutes: 15
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -491,7 +491,7 @@ jobs:
     timeout-minutes: 20
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -538,7 +538,7 @@ jobs:
     timeout-minutes: 45
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         # Audit, not block: this job builds and runs a container, and
         # container-side DNS bypasses harden-runner's resolver, so blocked
@@ -591,7 +591,7 @@ jobs:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -623,7 +623,7 @@ jobs:
         rustup component add llvm-tools
 
     - name: install cargo-llvm-cov
-      uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+      uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
       with:
         tool: cargo-llvm-cov
 
@@ -674,7 +674,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -717,7 +717,7 @@ jobs:
     timeout-minutes: 30
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -752,7 +752,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -780,7 +780,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -818,7 +818,7 @@ jobs:
     timeout-minutes: 45
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -847,7 +847,7 @@ jobs:
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
     - name: install cargo-mutants
-      uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+      uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
       with:
         tool: cargo-mutants
 
@@ -889,7 +889,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         # Audit, not block: this job builds and runs a container, and
         # container-side DNS bypasses harden-runner's resolver, so blocked
@@ -932,7 +932,7 @@ jobs:
     timeout-minutes: 5
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -959,7 +959,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
       with:
         # Audit, not block: this job runs a container, and container-side
         # DNS bypasses harden-runner's resolver, so blocked lookups surface as
