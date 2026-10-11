@@ -7,7 +7,7 @@ FROM jdkato/vale:v3.23.0@sha256:d87d6355dc8992f92ec39c4c862a388e56e30302a771fd45
 # sbom-action take a version input, and these FROM lines are what
 # Dependabot bumps. Nothing is built from them.
 FROM aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 AS trivy
-FROM anchore/syft:v1.52.0@sha256:500e2d872ac019436926e8322b4fc1f39441d94d21f6f4046c6ff29b30e8cb02 AS syft
+FROM anchore/syft:v1.54.0@sha256:0356562f495d432056237fbea5cbc2d4839c9c75cd500784a66de2e7cc95ca7c AS syft
 
 # Workflow and script linters, for CI's lint job. As with Vale, the stages
 # exist so each tool is a digest-pinned FROM line Dependabot bumps, and CI
