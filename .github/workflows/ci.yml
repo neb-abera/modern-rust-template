@@ -46,7 +46,7 @@ jobs:
 
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -73,7 +73,7 @@ jobs:
     - name: install pinned toolchain
       run: rustup toolchain install
 
-    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
     - name: build
       run: cargo build --release --locked
@@ -155,7 +155,7 @@ jobs:
     - name: install pinned toolchain
       run: rustup toolchain install
 
-    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
     - name: build
       run: cargo build --release --locked
@@ -202,7 +202,7 @@ jobs:
     timeout-minutes: 15
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -227,7 +227,7 @@ jobs:
     - name: install pinned toolchain
       run: rustup toolchain install
 
-    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
     - name: run clippy over every target
       run: cargo clippy --all-targets --locked
@@ -238,7 +238,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -272,7 +272,7 @@ jobs:
     timeout-minutes: 15
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -297,7 +297,7 @@ jobs:
     - name: install pinned toolchain
       run: rustup toolchain install
 
-    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
     - name: build documentation (warnings as errors)
       env:
@@ -313,7 +313,7 @@ jobs:
     timeout-minutes: 45
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -341,7 +341,7 @@ jobs:
         rustup toolchain install "$NIGHTLY" --profile minimal --component miri --component rust-src
         echo "NIGHTLY=$NIGHTLY" >> "$GITHUB_ENV"
 
-    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
     # RUSTFLAGS is cleared for Miri only: it changes the sysroot
     # fingerprint, forcing a slow rebuild; warnings-as-errors is already
@@ -363,7 +363,7 @@ jobs:
     timeout-minutes: 45
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -385,7 +385,7 @@ jobs:
       with:
         persist-credentials: false
 
-    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
     # The version comes from the Dockerfile, the single place it is written
     # down, exactly as the miri job derives its nightly. `cargo kani setup`
@@ -440,7 +440,7 @@ jobs:
     timeout-minutes: 15
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -491,7 +491,7 @@ jobs:
     timeout-minutes: 20
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -510,7 +510,7 @@ jobs:
       with:
         persist-credentials: false
 
-    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
     # The version comes from the Dockerfile, the single place it is written
     # down, as the miri and kani jobs derive theirs.
@@ -538,7 +538,7 @@ jobs:
     timeout-minutes: 45
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         # Audit, not block: this job builds and runs a container, and
         # container-side DNS bypasses harden-runner's resolver, so blocked
@@ -591,7 +591,7 @@ jobs:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -623,11 +623,11 @@ jobs:
         rustup component add llvm-tools
 
     - name: install cargo-llvm-cov
-      uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+      uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
       with:
         tool: cargo-llvm-cov
 
-    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
     # The threshold is enforced here, in-job, so the coverage gate is real
     # with no external service. The floor lives in coverage-floor.txt, the
@@ -674,7 +674,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -717,7 +717,7 @@ jobs:
     timeout-minutes: 30
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -752,7 +752,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -780,7 +780,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -818,7 +818,7 @@ jobs:
     timeout-minutes: 45
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -844,10 +844,10 @@ jobs:
     - name: install pinned toolchain
       run: rustup toolchain install
 
-    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
     - name: install cargo-mutants
-      uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+      uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
       with:
         tool: cargo-mutants
 
@@ -889,7 +889,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         # Audit, not block: this job builds and runs a container, and
         # container-side DNS bypasses harden-runner's resolver, so blocked
@@ -932,7 +932,7 @@ jobs:
     timeout-minutes: 5
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         egress-policy: block
         allowed-endpoints: >
@@ -959,7 +959,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: harden runner
-      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
       with:
         # Audit, not block: this job runs a container, and container-side
         # DNS bypasses harden-runner's resolver, so blocked lookups surface as
