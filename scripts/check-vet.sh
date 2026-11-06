@@ -3,7 +3,7 @@
 # check-vet.sh — cargo-vet: has anyone read this dependency's code?
 #
 # cargo-deny (deny.toml) answers a different question: known advisories,
-# licence compliance, banned crates, untrusted sources. Neither subsumes the
+# license compliance, banned crates, untrusted sources. Neither subsumes the
 # other, so both are gates.
 #
 #   scripts/check-vet.sh              run the gate

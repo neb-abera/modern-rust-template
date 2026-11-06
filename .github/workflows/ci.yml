@@ -352,7 +352,7 @@ jobs:
       run: cargo +"$NIGHTLY" miri test --locked
 
   # Kani: the proof gate. Where the test suite samples inputs and Miri watches
-  # the sampled runs for undefined behaviour, Kani hands the #[kani::proof]
+  # the sampled runs for undefined behavior, Kani hands the #[kani::proof]
   # harnesses in src/lib.rs to an SMT solver and settles them for every input.
   # The canary step is the one that matters over time: a proof whose
   # assumptions are too strong reports success while proving nothing, so a
@@ -974,3 +974,5 @@ jobs:
       run: |
         ./scripts/check-prose.sh --self-test
         ./scripts/check-prose.sh
+        ./scripts/check-american-spelling.sh --self-test
+        ./scripts/check-american-spelling.sh

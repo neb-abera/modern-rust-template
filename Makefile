@@ -95,3 +95,5 @@ install: ## install the release binary into ~/.cargo/bin
 prose: ## lint every tracked Markdown file against the writing rules (.vale/styles/Abera)
 	./scripts/check-prose.sh --self-test
 	./scripts/check-prose.sh
+	./scripts/check-american-spelling.sh --self-test
+	./scripts/check-american-spelling.sh
