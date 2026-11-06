@@ -25,4 +25,6 @@ LICENSE
 .vale/styles/Abera/Preamble.yml
 .vale/styles/Abera/Rhetorical.yml
 .vale/styles/Abera/Semicolon.yml
+.vale/styles/Abera/American.yml
+scripts/check-american-spelling.sh
 scripts/check-version.sh
