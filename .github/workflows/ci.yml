@@ -352,7 +352,7 @@ jobs:
       run: cargo +"$NIGHTLY" miri test --locked
 
   # Kani: the proof gate. Where the test suite samples inputs and Miri watches
-  # the sampled runs for undefined behaviour, Kani hands the #[kani::proof]
+  # the sampled runs for undefined behavior, Kani hands the #[kani::proof]
   # harnesses in src/lib.rs to an SMT solver and settles them for every input.
   # The canary step is the one that matters over time: a proof whose
   # assumptions are too strong reports success while proving nothing, so a
@@ -623,7 +623,7 @@ jobs:
         rustup component add llvm-tools
 
     - name: install cargo-llvm-cov
-      uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+      uses: taiki-e/install-action@b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2 # v2.90.0
       with:
         tool: cargo-llvm-cov
 
@@ -847,7 +847,7 @@ jobs:
     - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
     - name: install cargo-mutants
-      uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+      uses: taiki-e/install-action@b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2 # v2.90.0
       with:
         tool: cargo-mutants
 
@@ -974,3 +974,5 @@ jobs:
       run: |
         ./scripts/check-prose.sh --self-test
         ./scripts/check-prose.sh
+        ./scripts/check-american-spelling.sh --self-test
+        ./scripts/check-american-spelling.sh

@@ -343,12 +343,18 @@ banner "Prose: every tracked Markdown file passes the writing rules"
 # one violation per rule and every rule must fire on it, another is clean
 # and must pass, so a rule that has stopped matching is caught here rather
 # than trusted.
+#
+# Then the code's own text: scripts/check-american-spelling.sh reads strings
+# and comments with the Abera/American word list, because Vale reads only
+# Markdown and HTML.
 if ! command -v docker > /dev/null; then
   skip "Prose (docker not installed; CI's prose job runs this check on the runner)"
 elif ./scripts/check-prose.sh --self-test > "$LOG" 2>&1 \
-   && ./scripts/check-prose.sh >> "$LOG" 2>&1; then
+   && ./scripts/check-prose.sh >> "$LOG" 2>&1 \
+   && ./scripts/check-american-spelling.sh --self-test >> "$LOG" 2>&1 \
+   && ./scripts/check-american-spelling.sh >> "$LOG" 2>&1; then
   grep -E '^self-test' "$LOG" || true
-  pass "Prose passes .vale/styles/Abera"
+  pass "Prose passes .vale/styles/Abera, in the Markdown and the code's text"
 else
   tail -40 "$LOG"
   fail "Prose (a rule violation in a Markdown file, or a broken self-test)"
