@@ -37,7 +37,7 @@ RUN rm -rf /usr/local/bin/*go* /usr/local/bin/*gfortran* /usr/local/lib/go \
 # The base image tag must match the channel in rust-toolchain.toml and the
 # rust-version in Cargo.toml — scripts/check-toolchain.sh (a verify.sh and
 # CI gate) enforces the pairing, and Dependabot updates the digest.
-FROM rust:1.99.0-slim@sha256:2752b332db73fdbb7dc576f06c82ed1f312005784ef913d7e04a28f5f55dc581
+FROM rust:1.99.1-slim@sha256:f6c4a35d21dbb3c89d7a8d056c193e94fc09037f2b58dd858b09c39a47dd02d7
 
 # The pinned nightly toolchain, used only where stable cannot go: Miri
 # (undefined-behavior detection) and cargo-fuzz (libFuzzer). Scripts and CI
